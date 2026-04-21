@@ -1,0 +1,9 @@
+{
+  "name": "CommuniLink",
+  "description": "Connecting scattered community needs with real-time help and volunteer matching.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ],
+  "majorCapabilities": []
+}
