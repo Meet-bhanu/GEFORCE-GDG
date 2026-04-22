@@ -47,6 +47,7 @@ import {
   AreaChart,
   Area
 } from 'recharts';
+import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
 import ScrollReveal from './components/ScrollReveal';
 import Stepper, { Step } from './components/Stepper';
 import ReflectiveCard from './components/ReflectiveCard';
@@ -121,11 +122,24 @@ const PIE_DATA = [
   { name: 'Other', value: 50, color: '#64748b' },
 ];
 
+const NGO_DATA = [
+  { id: 1, name: 'Helping Hands', state: 'Maharashtra', coordinates: [73.7898, 19.9975], urgency: 'high' },
+  { id: 2, name: 'Food for All', state: 'Delhi', coordinates: [77.2090, 28.6139], urgency: 'medium' },
+  { id: 3, name: 'Care India', state: 'Karnataka', coordinates: [77.5946, 12.9716], urgency: 'low' },
+  { id: 4, name: 'Hope Foundation', state: 'Gujarat', coordinates: [72.5714, 23.0225], urgency: 'high' },
+  { id: 5, name: 'Save the Children', state: 'West Bengal', coordinates: [88.3639, 22.5726], urgency: 'low' },
+  { id: 6, name: 'Relief Front', state: 'Tamil Nadu', coordinates: [78.6569, 11.1271], urgency: 'medium' },
+  { id: 7, name: 'Local Aid', state: 'Kerala', coordinates: [76.2711, 10.8505], urgency: 'high' }
+];
+
+const INDIA_TOPO_JSON = 'https://raw.githubusercontent.com/Subhash9325/GeoJson-Data-of-Indian-States/master/Indian_States';
+
 // --- Sub-Components ---
 
 const Sidebar = ({ activeTab, setActiveTab, userRole, onLogout }: { activeTab: string; setActiveTab: (t: string) => void; userRole: UserRole; onLogout: () => void }) => {
   const menuItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { id: 'ngos', icon: Globe, label: 'NGO Network' },
     { id: 'needs', icon: Layers, label: 'Needs' },
     { id: 'volunteers', icon: Users, label: 'Volunteers' },
     { id: 'submit-report', icon: FileText, label: 'Submit Report' },
@@ -310,6 +324,88 @@ const NeedCard = ({ need, assignedVolunteer, userRole, onAssign, onRemove }: any
         </div>
       </div>
     </motion.div>
+  );
+};
+
+const NgosPage = ({ userRole }: { userRole: UserRole }) => {
+  return (
+    <div className="p-8 space-y-8 pb-32 h-full flex flex-col">
+       <div className="flex items-end justify-between">
+          <div>
+            <h2 className="text-4xl font-display font-black text-white uppercase tracking-tighter italic">NGO Network</h2>
+            <p className="text-slate-500 font-medium">Interactive Map of NGO Availability in India.</p>
+          </div>
+       </div>
+       
+       <div className="flex-1 bg-slate-900/40 border border-slate-800 rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden min-h-[600px]">
+          {/* Legend */}
+          <div className="absolute top-8 right-8 bg-[#020617]/80 backdrop-blur-xl border border-slate-800 p-4 rounded-2xl z-10 shadow-2xl">
+            <h4 className="text-[10px] font-black text-white uppercase tracking-widest mb-3">Map Legend</h4>
+            <div className="space-y-2">
+              {userRole === 'admin' ? (
+                <>
+                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-rose-500"></span><span className="text-xs text-slate-400 font-bold">High Urgency</span></div>
+                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-amber-500"></span><span className="text-xs text-slate-400 font-bold">Medium Urgency</span></div>
+                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-500"></span><span className="text-xs text-slate-400 font-bold">Available</span></div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-500"></span><span className="text-xs text-slate-400 font-bold">NGOs Available</span></div>
+                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-slate-800 border border-slate-700"></span><span className="text-xs text-slate-400 font-bold">No coverage</span></div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <ComposableMap
+            projection="geoMercator"
+            projectionConfig={{ scale: 1000, center: [80, 22] }}
+            style={{ width: "100%", height: "100%" }}
+          >
+            <Geographies geography={INDIA_TOPO_JSON}>
+              {({ geographies }) =>
+                geographies.map((geo) => {
+                  const stateName = geo.properties.NAME_1;
+                  const ngosInState = NGO_DATA.filter(n => stateName && stateName.includes(n.state));
+                  const hasNgo = ngosInState.length > 0;
+                  
+                  let fillColor = "#1e293b"; // default slate-800
+                  if (userRole === 'admin') {
+                     if (ngosInState.some(n => n.urgency === 'high')) fillColor = "#ef4444"; // rose-500
+                     else if (ngosInState.some(n => n.urgency === 'medium')) fillColor = "#f59e0b"; // amber-500
+                     else if (hasNgo) fillColor = "#22c55e"; // green-500
+                  } else {
+                     if (hasNgo) fillColor = "#22c55e"; // just green if available
+                  }
+
+                  return (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      fill={fillColor}
+                      stroke="#0f172a"
+                      strokeWidth={1}
+                      style={{
+                        default: { outline: "none", transition: "all 250ms" },
+                        hover: { fill: "#3b82f6", outline: "none", transition: "all 250ms" },
+                        pressed: { outline: "none" },
+                      }}
+                    />
+                  );
+                })
+              }
+            </Geographies>
+            {userRole === 'admin' && NGO_DATA.map((ngo) => (
+              <Marker key={ngo.id} coordinates={ngo.coordinates as [number, number]}>
+                <circle r={4} fill="#ffffff" stroke="#020617" strokeWidth={2} />
+                <text textAnchor="middle" y={-8} style={{ fontFamily: "Inter, system-ui", fill: "#ffffff", fontSize: "10px", fontWeight: "bold", textShadow: "0px 2px 4px rgba(0,0,0,0.8)" }}>
+                  {ngo.name}
+                </text>
+              </Marker>
+            ))}
+          </ComposableMap>
+       </div>
+    </div>
   );
 };
 
@@ -522,17 +618,154 @@ const DashboardPage = () => {
   );
 };
 
+const AuthPage = ({ onLogin, onBack, initialIsSignUp }: { onLogin: (role: UserRole) => void; onBack: () => void; initialIsSignUp: boolean }) => {
+  const [selectedRoleToLogin, setSelectedRoleToLogin] = useState<UserRole | null>(null);
+  const [isSignUp, setIsSignUp] = useState(initialIsSignUp);
+
+  return (
+    <div className="min-h-screen w-full bg-[#020617] flex items-center justify-center p-6 relative overflow-hidden">
+      {/* Background Accents */}
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-green-500/10 rounded-full blur-[160px] opacity-20 -z-10 translate-x-1/2 -translate-y-1/2"></div>
+      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[140px] opacity-20 -z-10 -translate-x-1/2 translate-y-1/2"></div>
+      
+      <div className="w-full max-w-md">
+        <button onClick={onBack} className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500 hover:text-white transition-colors mb-8">
+           <ArrowRight size={16} className="rotate-180" /> Back to Home
+        </button>
+
+        <div className="bg-slate-900 border border-slate-800 rounded-[3rem] p-10 shadow-2xl relative overflow-hidden transition-all duration-500">
+          <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r transition-all duration-500 ${
+             selectedRoleToLogin === 'admin' ? 'from-green-400 to-green-600' :
+             selectedRoleToLogin === 'guest' ? 'from-blue-400 to-blue-600' :
+             selectedRoleToLogin === 'public' ? 'from-slate-300 to-slate-500' :
+             'from-green-500 via-blue-500 to-rose-500'
+          }`}></div>
+          
+          {!selectedRoleToLogin ? (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="text-center mb-10">
+                 <div className="w-16 h-16 bg-green-500/10 rounded-2xl flex items-center justify-center text-green-500 mx-auto mb-4">
+                    <LockIcon size={32} />
+                 </div>
+                 <h3 className="text-2xl font-display font-black text-white uppercase tracking-tight">Access Protocol</h3>
+                 <p className="text-slate-500 text-sm font-medium mt-2">Select your access tier to proceed</p>
+              </div>
+              <div className="space-y-4">
+                {[
+                  { role: 'admin', label: 'Super Admin', desc: 'Full system management & coordination', icon: ShieldCheck, color: 'text-green-500', bgHover: 'hover:border-green-500/50' },
+                  { role: 'guest', label: 'Guest Observer', desc: 'Limited administrative oversight', icon: UserIcon, color: 'text-blue-500', bgHover: 'hover:border-blue-500/50' },
+                  { role: 'public', label: 'Public User', desc: 'View global needs & community pulse', icon: Globe, color: 'text-slate-400', bgHover: 'hover:border-slate-400/50' },
+                ].map((tier) => (
+                  <button
+                    key={tier.role}
+                    onClick={() => setSelectedRoleToLogin(tier.role as UserRole)}
+                    className={`w-full flex items-center gap-4 p-5 rounded-2xl bg-black/40 border border-slate-800 ${tier.bgHover} hover:bg-slate-800/50 transition-all text-left group`}
+                  >
+                    <div className={`w-12 h-12 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center ${tier.color} group-hover:scale-110 transition-transform`}>
+                      <tier.icon size={22} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-black text-white uppercase tracking-widest">{tier.label}</p>
+                      <p className="text-[10px] text-slate-500 font-medium">{tier.desc}</p>
+                    </div>
+                    <ArrowRight size={16} className={`text-slate-700 group-hover:${tier.color} group-hover:translate-x-1 transition-all`} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="animate-in fade-in slide-in-from-right-4 duration-500 relative">
+              <button 
+                onClick={() => setSelectedRoleToLogin(null)}
+                className="absolute -top-4 -right-4 p-2 text-slate-500 hover:text-white transition-colors"
+              >
+                <Plus size={20} className="rotate-45" />
+              </button>
+              <div className="text-center mb-8">
+                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 ${
+                   selectedRoleToLogin === 'admin' ? 'bg-green-500/10 text-green-500 border border-green-500/20' :
+                   selectedRoleToLogin === 'guest' ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20' :
+                   'bg-slate-800 text-slate-300 border border-slate-700'
+                }`}>
+                   {selectedRoleToLogin === 'admin' ? <ShieldCheck size={32} /> : selectedRoleToLogin === 'guest' ? <UserIcon size={32} /> : <Globe size={32} />}
+                </div>
+                <h3 className="text-2xl font-display font-black text-white uppercase tracking-tight">
+                  {selectedRoleToLogin} {isSignUp ? 'Registration' : 'Login'}
+                </h3>
+                <p className="text-slate-500 text-sm font-medium mt-2">
+                  {isSignUp ? 'Create a secure account to access features' : 'Enter your credentials to continue'}
+                </p>
+              </div>
+
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  onLogin(selectedRoleToLogin);
+                }} 
+                className="space-y-4"
+              >
+                {isSignUp && (
+                  <div>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Full Name</label>
+                    <div className="relative">
+                       <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                       <input type="text" required placeholder="John Doe" className="w-full bg-[#020617] border border-slate-800 rounded-xl pl-11 pr-4 py-3 text-sm text-white focus:outline-none focus:border-green-500 transition-colors" />
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Email Address</label>
+                  <div className="relative">
+                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                     <input type="email" required placeholder="name@example.com" className="w-full bg-[#020617] border border-slate-800 rounded-xl pl-11 pr-4 py-3 text-sm text-white focus:outline-none focus:border-green-500 transition-colors" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Password</label>
+                  <div className="relative">
+                     <LockIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                     <input type="password" required placeholder="••••••••" className="w-full bg-[#020617] border border-slate-800 rounded-xl pl-11 pr-4 py-3 text-sm text-white focus:outline-none focus:border-green-500 transition-colors" />
+                  </div>
+                </div>
+
+                <button type="submit" className={`w-full py-4 rounded-xl text-xs font-black uppercase tracking-widest shadow-2xl transition-all mt-4 ${
+                   selectedRoleToLogin === 'admin' ? 'bg-green-500 text-black hover:bg-green-400 shadow-green-500/20' :
+                   selectedRoleToLogin === 'guest' ? 'bg-blue-500 text-white hover:bg-blue-400 shadow-blue-500/20' :
+                   'bg-slate-200 text-black hover:bg-white shadow-slate-200/20'
+                }`}>
+                  {isSignUp ? 'Complete Registration' : 'Authenticate Identity'}
+                </button>
+              </form>
+
+              <div className="mt-6 text-center">
+                <p className="text-xs text-slate-500 font-medium">
+                  {isSignUp ? 'Already have an account?' : "Don't have an account?"} 
+                  <button type="button" onClick={() => setIsSignUp(!isSignUp)} className={`ml-1 font-bold hover:underline ${
+                     selectedRoleToLogin === 'admin' ? 'text-green-500' :
+                     selectedRoleToLogin === 'guest' ? 'text-blue-500' :
+                     'text-slate-300'
+                  }`}>
+                     {isSignUp ? 'Sign In' : 'Sign Up'}
+                  </button>
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- Landing Page View ---
 
-const LandingPage = ({ onLogin, onOpenReport }: { onLogin: (role: UserRole) => void; onOpenReport: () => void }) => {
-  const [showLoginOptions, setShowLoginOptions] = useState(false);
-
+const LandingPage = ({ onOpenAuth, onOpenReport, onOpenNgos, onOpenAbout, activeTab }: { onOpenAuth: (mode: 'login' | 'signup') => void; onOpenReport: () => void; onOpenNgos: () => void; onOpenAbout: () => void; activeTab: string; }) => {
   return (
     <div className="min-h-screen bg-[#020617]">
        {/* Global Navigation */}
        <nav className="fixed top-0 left-0 right-0 z-50 bg-[#020617]/50 backdrop-blur-2xl border-b border-slate-800/50">
         <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => onOpenAbout()}>
             <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center text-black shadow-2xl shadow-green-500/30">
               <ShieldCheck size={24} fill="currentColor" />
             </div>
@@ -542,96 +775,85 @@ const LandingPage = ({ onLogin, onOpenReport }: { onLogin: (role: UserRole) => v
             </div>
           </div>
           <div className="hidden lg:flex items-center gap-10">
-            {['Home', 'Explore Needs', 'Volunteers', 'NGOs', 'Report', 'Dashboard'].map((link) => (
+            {['Home', 'Explore Needs', 'NGOs', 'Dashboard', 'About Us'].map((link) => (
               <a 
                 key={link} 
-                href={link === 'Dashboard' || link === 'Report' ? '#' : `#${link.toLowerCase().replace(' ', '-')}`} 
+                href={link === 'Dashboard' ? '#' : `#${link.toLowerCase().replace(' ', '-')}`} 
                 onClick={(e) => {
+                  if (link === 'Home') {
+                    e.preventDefault();
+                    onOpenAbout(); // Trick to route home by passing different string or handle in app
+                    // Actually let's use href for simple scroll unless it's a special route.
+                  }
                   if (link === 'Dashboard') {
                     e.preventDefault();
-                    setShowLoginOptions(true);
+                    onOpenAuth('login');
                   }
-                  if (link === 'Report') {
+                  if (link === 'NGOs') {
                     e.preventDefault();
-                    onOpenReport();
-                    setShowLoginOptions(true);
+                    onOpenNgos();
+                    onOpenAuth('login');
+                  }
+                  if (link === 'About Us') {
+                    e.preventDefault();
+                    onOpenAbout();
                   }
                 }}
-                className={`text-xs font-black uppercase tracking-widest transition-all duration-300 ${link === 'Home' ? 'text-green-500' : 'text-slate-400 hover:text-white hover:translate-y-[-1px]'}`}
+                className={`text-xs font-black uppercase tracking-widest transition-all duration-300 ${link === 'Home' && activeTab === 'home' ? 'text-green-500' : 'text-slate-400 hover:text-white hover:translate-y-[-1px]'}`}
               >
                 {link}
               </a>
             ))}
-            <div className="flex items-center gap-2 group cursor-pointer text-slate-400 hover:text-white">
-               <span className="text-xs font-black uppercase tracking-widest">About Us</span>
-               <ChevronDown size={14} className="group-hover:rotate-180 transition-transform duration-500" />
-            </div>
           </div>
           <div className="flex items-center gap-4">
              <button 
-              onClick={() => setShowLoginOptions(true)}
+              onClick={() => onOpenAuth('login')}
               className="hidden sm:block text-xs font-black uppercase tracking-widest text-slate-300 hover:text-white transition-colors"
              >
                Log In
              </button>
-             <button className="bg-green-500 text-black px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-2xl shadow-green-500/20 hover:scale-105 active:scale-95 transition-all">Sign Up</button>
+             <button 
+               onClick={() => onOpenAuth('signup')}
+               className="bg-green-500 text-black px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-2xl shadow-green-500/20 hover:scale-105 active:scale-95 transition-all"
+             >
+               Sign Up
+             </button>
           </div>
         </div>
 
-        {/* Login Selection Overlay */}
-        <AnimatePresence>
-          {showLoginOptions && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-6"
-            >
-              <div className="bg-slate-900 border border-slate-800 rounded-[3rem] p-10 max-w-md w-full shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 via-blue-500 to-rose-500"></div>
-                <button 
-                  onClick={() => setShowLoginOptions(false)}
-                  className="absolute top-6 right-6 text-slate-500 hover:text-white"
-                >
-                  <Plus size={24} className="rotate-45" />
-                </button>
-                <div className="text-center mb-10">
-                   <div className="w-16 h-16 bg-green-500/10 rounded-2xl flex items-center justify-center text-green-500 mx-auto mb-4">
-                      <LockIcon size={32} />
-                   </div>
-                   <h3 className="text-2xl font-display font-black text-white uppercase tracking-tight">Access Protocol</h3>
-                   <p className="text-slate-500 text-sm font-medium mt-2">Select your access tier to proceed</p>
-                </div>
-                <div className="space-y-4">
-                  {[
-                    { role: 'admin', label: 'Super Admin', desc: 'Full system management & coordination', icon: ShieldCheck, color: 'text-green-500' },
-                    { role: 'guest', label: 'Guest Observer', desc: 'Limited administrative oversight', icon: UserIcon, color: 'text-blue-500' },
-                    { role: 'public', label: 'Public User', desc: 'View global needs & community pulse', icon: Globe, color: 'text-slate-400' },
-                  ].map((tier) => (
-                    <button
-                      key={tier.role}
-                      onClick={() => onLogin(tier.role as UserRole)}
-                      className="w-full flex items-center gap-4 p-5 rounded-2xl bg-black/40 border border-slate-800 hover:border-green-500/50 hover:bg-slate-800/50 transition-all text-left group"
-                    >
-                      <div className={`w-12 h-12 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center ${tier.color} group-hover:scale-110 transition-transform`}>
-                        <tier.icon size={22} />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-black text-white uppercase tracking-widest">{tier.label}</p>
-                        <p className="text-[10px] text-slate-500 font-medium">{tier.desc}</p>
-                      </div>
-                      <ArrowRight size={16} className="text-slate-700 group-hover:text-green-500 group-hover:translate-x-1 transition-all" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative pt-44 pb-32 px-8 overflow-hidden">
+      {activeTab === 'about-landing' ? (
+        <section className="pt-44 pb-32 px-8 min-h-[80vh] flex items-center justify-center relative overflow-hidden">
+           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-[#020617] to-slate-900/50 -z-10"></div>
+           <FadeContent blur={true} duration={1000}>
+              <div className="max-w-4xl mx-auto text-center">
+                 <h2 className="text-6xl md:text-8xl font-display font-black text-white tracking-tighter mb-8">About <span className="text-green-500">Us</span></h2>
+                 <p className="text-xl text-slate-400 leading-relaxed font-medium mb-16">
+                   SevaConnect is a technology-driven community platform dedicated to bridging the gap between those in need and those who can help. Our mission is to enable rapid response to community needs, ensuring that no request for help goes unanswered. We believe in the power of local communities powered by global technology.
+                 </p>
+                 <div className="grid md:grid-cols-3 gap-8 text-left">
+                    <div className="bg-slate-900/40 p-8 rounded-[2rem] border border-slate-800 shadow-xl hover:border-green-500/50 transition-colors">
+                       <h3 className="text-2xl font-bold text-white mb-4">Our Vision</h3>
+                       <p className="text-slate-500 text-sm">To create a resilient network of volunteers and NGOs across India that can respond to any crisis.</p>
+                    </div>
+                    <div className="bg-slate-900/40 p-8 rounded-[2rem] border border-slate-800 shadow-xl hover:border-green-500/50 transition-colors">
+                       <h3 className="text-2xl font-bold text-white mb-4">Our Mission</h3>
+                       <p className="text-slate-500 text-sm">Provide real-time technology solutions to mobilize relief efforts and track impact securely.</p>
+                    </div>
+                    <div className="bg-slate-900/40 p-8 rounded-[2rem] border border-slate-800 shadow-xl hover:border-green-500/50 transition-colors">
+                       <h3 className="text-2xl font-bold text-white mb-4">Our Values</h3>
+                       <p className="text-slate-500 text-sm">Transparency, Empathy, Action, and always putting the Community First.</p>
+                    </div>
+                 </div>
+              </div>
+           </FadeContent>
+        </section>
+      ) : (
+        <>
+          {/* Hero Section */}
+          <section className="relative pt-44 pb-32 px-8 overflow-hidden">
         {/* Background Accents */}
         <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-green-500/10 rounded-full blur-[160px] opacity-20 -z-10 translate-x-1/2 -translate-y-1/2"></div>
         <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[140px] opacity-20 -z-10 -translate-x-1/2 translate-y-1/2"></div>
@@ -665,12 +887,6 @@ const LandingPage = ({ onLogin, onOpenReport }: { onLogin: (role: UserRole) => v
                 We collect, analyze, and act on community needs to build a stronger and more compassionate society.
               </p>
               <div className="flex flex-wrap gap-5">
-                <button onClick={() => { onOpenReport(); setShowLoginOptions(true); }} className="bg-green-500 text-black px-10 py-5 rounded-[1.5rem] font-black uppercase tracking-widest shadow-2xl shadow-green-500/30 hover:bg-green-400 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-3 group">
-                  <ClipboardList size={22} className="group-hover:rotate-12 transition-transform" /> Report a Need
-                </button>
-                <button className="bg-slate-900 border border-slate-800 text-white px-10 py-5 rounded-[1.5rem] font-black uppercase tracking-widest hover:border-slate-600 hover:bg-slate-800 transition-all flex items-center gap-3">
-                  <Users size={22} /> Become a Volunteer
-                </button>
               </div>
             </FadeContent>
             
@@ -814,109 +1030,8 @@ const LandingPage = ({ onLogin, onOpenReport }: { onLogin: (role: UserRole) => v
           </div>
         </FadeContent>
       </section>
-
-      {/* Report a Need Section with STEPPER */}
-      <section id="ngos" className="py-32 px-8 bg-slate-900/20">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-20 items-center">
-           <div className="hidden lg:block relative">
-             <FadeContent blur={true} duration={1500} threshold={0.2} initialOpacity={0}>
-               <div className="absolute inset-0 bg-blue-500/10 rounded-full blur-[100px] opacity-20 -z-10 translate-x-[20%] translate-y-[-20%]"></div>
-               <div className="rounded-[4rem] overflow-hidden shadow-2xl border-[16px] border-[#020617] rotate-[-2deg] hover:rotate-0 transition-all duration-700">
-                 <img src="https://images.unsplash.com/photo-1542601906990-b4d3fb773b09?w=800&auto=format&fit=crop" className="w-full aspect-[4/5] object-cover grayscale opacity-80" alt="Field action" />
-               </div>
-               {/* Text Overlay */}
-               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4/5 text-center p-8 bg-black/60 backdrop-blur-xl rounded-[2.5rem] border border-white/10 shadow-2xl">
-                  <h3 className="text-4xl font-display font-black text-white mb-4 tracking-tighter uppercase">Variation 3</h3>
-                  <p className="text-sm font-medium text-slate-300 italic">"Our field data transforms into immediate volunteer responses within minutes of submission."</p>
-               </div>
-             </FadeContent>
-           </div>
-
-           <div>
-              <h2 className="text-6xl font-display font-black text-white tracking-tighter mb-4">Report a Need</h2>
-              <p className="text-slate-400 font-medium tracking-tight mb-12">Your field information helps us mobilize the right rescue action immediately.</p>
-              
-              <Stepper
-                initialStep={1}
-                stepCircleContainerClassName="!max-w-full !rounded-[2.5rem] !bg-black/40 !border-slate-800 shadow-2xl"
-                stepContainerClassName="!p-8 !border-b-0"
-                contentClassName="!bg-transparent"
-                nextButtonText="Continue"
-                backButtonText="Back"
-                onFinalStepCompleted={() => alert('Field report submitted to central hub!')}
-              >
-                <Step>
-                  <div className="space-y-6">
-                    <h2 className="text-2xl font-display font-bold text-white tracking-tight">Step 1: Classification</h2>
-                    <p className="text-slate-500 text-sm">Help us categorize the urgency and type of support required.</p>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Primary Category</label>
-                        <select className="w-full bg-[#020617] border border-slate-800 rounded-xl p-4 text-sm text-white focus:outline-none focus:border-green-500">
-                          <option>Select Category</option>
-                          <option>Food Supplies</option>
-                          <option>Healthcare</option>
-                          <option>Sanitation</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Urgency</label>
-                        <select className="w-full bg-[#020617] border border-slate-800 rounded-xl p-4 text-sm text-white focus:outline-none focus:border-green-500">
-                          <option>Select Priority</option>
-                          <option>Critical</option>
-                          <option>High</option>
-                          <option>Moderate</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                </Step>
-                <Step>
-                  <div className="space-y-6">
-                    <h2 className="text-2xl font-display font-bold text-white tracking-tight text-center">Step 2: Location Data</h2>
-                    <p className="text-slate-500 text-sm text-center">Provide precise coordinates or landmarks for navigation.</p>
-                    <div className="bg-[#020617] rounded-2xl border border-slate-800 p-6 flex items-center justify-center gap-4 cursor-pointer hover:border-green-500/50 transition-all group">
-                       <MapPin size={32} className="text-green-500 group-hover:scale-110 transition-transform" />
-                       <div className="text-left">
-                          <p className="text-sm font-bold text-white tracking-tight">Auto-Detect GPS</p>
-                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Precision within 2 meters</p>
-                       </div>
-                    </div>
-                    <div>
-                      <input 
-                        type="text" 
-                        placeholder="Street Address, Area, or Landmark..." 
-                        className="w-full bg-[#020617] border border-slate-800 rounded-xl p-4 text-sm text-white focus:outline-none focus:border-green-500"
-                      />
-                    </div>
-                  </div>
-                </Step>
-                <Step>
-                  <div className="space-y-6">
-                    <h2 className="text-2xl font-display font-bold text-white tracking-tight">Step 3: Visual Proof</h2>
-                    <p className="text-slate-500 text-sm">Upload field photos to help teams assess resource volume.</p>
-                    <div className="bg-[#020617] border-2 border-dashed border-slate-800 rounded-3xl p-12 text-center hover:border-green-500/30 transition-all group cursor-pointer">
-                       <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center text-slate-500 group-hover:text-green-500 group-hover:scale-110 transition-all mx-auto mb-4">
-                          <Upload size={24} />
-                       </div>
-                       <p className="text-sm font-bold text-white mb-1">Tap/Drop to Upload Photos</p>
-                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">JPG, PNG up to 12MB</p>
-                    </div>
-                  </div>
-                </Step>
-                <Step>
-                  <div className="text-center space-y-4 py-8">
-                    <div className="w-20 h-20 bg-green-500/10 border border-green-500/20 rounded-full flex items-center justify-center text-green-500 mx-auto mb-6 scale-[1.5]">
-                       <CheckCircle2 size={40} />
-                    </div>
-                    <h2 className="text-3xl font-display font-extrabold text-white tracking-tighter uppercase">Final Review</h2>
-                    <p className="text-slate-400 font-medium">Ready to broadcast this need to the local regional hub?</p>
-                  </div>
-                </Step>
-              </Stepper>
-           </div>
-        </div>
-      </section>
+      </>
+      )}
 
       {/* Footer */}
       <footer className="bg-[#000000] border-t border-slate-900 py-32 px-8 overflow-hidden relative">
@@ -1044,6 +1159,14 @@ export default function App() {
     setRequestAfterLoginTab('submit-report');
   };
 
+  const openNgosPage = () => {
+    if (userRole) {
+      setActiveTab('ngos');
+      return;
+    }
+    setRequestAfterLoginTab('ngos');
+  };
+
   const submitReport = async () => {
     setReportMessage('Submitting...');
     try {
@@ -1075,15 +1198,27 @@ export default function App() {
   return (
     <div className="font-sans antialiased text-slate-100 selection:bg-green-500 selection:text-black min-h-screen">
       <AnimatePresence mode="wait">
-        {!userRole && activeTab === 'home' ? (
-          <motion.div
-            key="home"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <LandingPage onLogin={handleLogin} onOpenReport={openReportPage} />
-          </motion.div>
+        {!userRole ? (
+          (activeTab === 'login' || activeTab === 'signup') ? (
+            <motion.div
+              key="auth"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex-1 flex flex-col"
+            >
+              <AuthPage onLogin={handleLogin} onBack={() => setActiveTab('home')} initialIsSignUp={activeTab === 'signup'} />
+            </motion.div>
+          ) : (activeTab === 'home' || activeTab === 'about-landing') ? (
+            <motion.div
+              key="home"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <LandingPage onOpenAuth={(mode) => setActiveTab(mode)} onOpenReport={openReportPage} onOpenNgos={openNgosPage} onOpenAbout={() => setActiveTab('about-landing')} activeTab={activeTab} />
+            </motion.div>
+          ) : null
         ) : (
           <motion.div
             key="app"
@@ -1097,6 +1232,7 @@ export default function App() {
               <Header userRole={userRole} />
               <main className="flex-1 overflow-y-auto no-scrollbar scroll-smooth">
                 {activeTab === 'dashboard' && <DashboardPage />}
+                {activeTab === 'ngos' && <NgosPage userRole={userRole} />}
                 {activeTab === 'needs' && (
                   <div className="p-8 space-y-8 pb-32">
                      <div className="flex items-end justify-between">
@@ -1246,7 +1382,7 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                {!['dashboard', 'needs', 'volunteers', 'submit-report'].includes(activeTab) && (
+                {!['dashboard', 'ngos', 'needs', 'volunteers', 'submit-report'].includes(activeTab) && (
                   <div className="flex flex-col items-center justify-center h-full text-slate-600 italic">
                     <div className="w-24 h-24 bg-slate-900/50 rounded-[2.5rem] flex items-center justify-center text-slate-800 mb-6 border border-slate-800">
                        <Zap size={40} />
