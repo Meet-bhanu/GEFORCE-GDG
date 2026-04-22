@@ -62,6 +62,31 @@ interface Assignment {
   assignedAt: Date;
 }
 
+interface VolunteerRecord {
+  id: number;
+  name: string;
+  location: string;
+  skills: string[];
+  hours: number;
+  avatar: string;
+  available?: boolean;
+}
+
+interface NeedRecord {
+  id: number;
+  title: string;
+  area?: string;
+  location?: string;
+  type: string;
+  volunteersNeeded: number;
+  urgency: string;
+  image?: string;
+  color?: string;
+  assignedVolunteerIds?: number[];
+}
+
+const API_BASE = 'http://localhost:5000/api';
+
 // --- Data ---
 
 const VOLUNTEERS = [
@@ -103,6 +128,7 @@ const Sidebar = ({ activeTab, setActiveTab, userRole, onLogout }: { activeTab: s
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'needs', icon: Layers, label: 'Needs' },
     { id: 'volunteers', icon: Users, label: 'Volunteers' },
+    { id: 'submit-report', icon: FileText, label: 'Submit Report' },
     { id: 'reports', icon: ClipboardList, label: 'Reports' },
     { id: 'analytics', icon: BarChart3, label: 'Analytics' },
     { id: 'settings', icon: Settings, label: 'Settings' },
@@ -214,7 +240,7 @@ const VolunteerCard = ({ volunteer }: { volunteer: typeof VOLUNTEERS[0]; key?: a
   </motion.div>
 );
 
-const NeedCard = ({ need, assignedVolunteer, userRole, onAssign }: any) => {
+const NeedCard = ({ need, assignedVolunteer, userRole, onAssign, onRemove }: any) => {
   const colorMap = {
     rose: 'border-rose-500 text-rose-500 bg-rose-500/10',
     amber: 'border-amber-500 text-amber-500 bg-amber-500/10',
@@ -267,6 +293,14 @@ const NeedCard = ({ need, assignedVolunteer, userRole, onAssign }: any) => {
                 className="px-4 py-2 rounded-xl bg-green-500/10 text-green-500 border border-green-500/30 text-[10px] font-black uppercase tracking-widest hover:bg-green-500 hover:text-black transition-all"
               >
                 Assign
+              </button>
+            )}
+            {userRole === 'admin' && assignedVolunteer && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onRemove?.(); }}
+                className="px-4 py-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/30 text-[10px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all"
+              >
+                Remove
               </button>
             )}
             <button className="w-10 h-10 rounded-xl bg-slate-800 hover:bg-green-500 flex items-center justify-center text-slate-400 hover:text-black border border-slate-700 hover:border-green-400 transition-all group/btn">
@@ -490,7 +524,7 @@ const DashboardPage = () => {
 
 // --- Landing Page View ---
 
-const LandingPage = ({ onLogin }: { onLogin: (role: UserRole) => void }) => {
+const LandingPage = ({ onLogin, onOpenReport }: { onLogin: (role: UserRole) => void; onOpenReport: () => void }) => {
   const [showLoginOptions, setShowLoginOptions] = useState(false);
 
   return (
@@ -508,11 +542,21 @@ const LandingPage = ({ onLogin }: { onLogin: (role: UserRole) => void }) => {
             </div>
           </div>
           <div className="hidden lg:flex items-center gap-10">
-            {['Home', 'Explore Needs', 'Volunteers', 'NGOs', 'Dashboard'].map((link) => (
+            {['Home', 'Explore Needs', 'Volunteers', 'NGOs', 'Report', 'Dashboard'].map((link) => (
               <a 
                 key={link} 
-                href={link === 'Dashboard' ? '#' : `#${link.toLowerCase().replace(' ', '-')}`} 
-                onClick={link === 'Dashboard' ? (e) => { e.preventDefault(); setShowLoginOptions(true); } : undefined}
+                href={link === 'Dashboard' || link === 'Report' ? '#' : `#${link.toLowerCase().replace(' ', '-')}`} 
+                onClick={(e) => {
+                  if (link === 'Dashboard') {
+                    e.preventDefault();
+                    setShowLoginOptions(true);
+                  }
+                  if (link === 'Report') {
+                    e.preventDefault();
+                    onOpenReport();
+                    setShowLoginOptions(true);
+                  }
+                }}
                 className={`text-xs font-black uppercase tracking-widest transition-all duration-300 ${link === 'Home' ? 'text-green-500' : 'text-slate-400 hover:text-white hover:translate-y-[-1px]'}`}
               >
                 {link}
@@ -621,7 +665,7 @@ const LandingPage = ({ onLogin }: { onLogin: (role: UserRole) => void }) => {
                 We collect, analyze, and act on community needs to build a stronger and more compassionate society.
               </p>
               <div className="flex flex-wrap gap-5">
-                <button className="bg-green-500 text-black px-10 py-5 rounded-[1.5rem] font-black uppercase tracking-widest shadow-2xl shadow-green-500/30 hover:bg-green-400 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-3 group">
+                <button onClick={() => { onOpenReport(); setShowLoginOptions(true); }} className="bg-green-500 text-black px-10 py-5 rounded-[1.5rem] font-black uppercase tracking-widest shadow-2xl shadow-green-500/30 hover:bg-green-400 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-3 group">
                   <ClipboardList size={22} className="group-hover:rotate-12 transition-transform" /> Report a Need
                 </button>
                 <button className="bg-slate-900 border border-slate-800 text-white px-10 py-5 rounded-[1.5rem] font-black uppercase tracking-widest hover:border-slate-600 hover:bg-slate-800 transition-all flex items-center gap-3">
@@ -933,12 +977,23 @@ const LandingPage = ({ onLogin }: { onLogin: (role: UserRole) => void }) => {
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [userRole, setUserRole] = useState<UserRole>(null);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [assigningTo, setAssigningTo] = useState<number | null>(null);
+  const [apiNeeds, setApiNeeds] = useState<NeedRecord[]>(NEEDS);
+  const [apiVolunteers, setApiVolunteers] = useState<VolunteerRecord[]>(VOLUNTEERS);
+  const [requestAfterLoginTab, setRequestAfterLoginTab] = useState<string>('dashboard');
+  const [reportForm, setReportForm] = useState({
+    title: '',
+    area: '',
+    type: 'Food',
+    volunteersNeeded: 1,
+    urgency: 'Medium',
+    description: ''
+  });
+  const [reportMessage, setReportMessage] = useState('');
 
   const handleLogin = (role: UserRole) => {
     setUserRole(role);
-    setActiveTab('dashboard');
+    setActiveTab(requestAfterLoginTab || 'dashboard');
   };
 
   const handleLogout = () => {
@@ -946,25 +1001,88 @@ export default function App() {
     setActiveTab('home');
   };
 
-  const assignTask = (needId: number, volunteerId: number) => {
+  const fetchPlatformData = async () => {
+    try {
+      const [needsRes, volunteersRes] = await Promise.all([
+        fetch(`${API_BASE}/needs`),
+        fetch(`${API_BASE}/volunteers`)
+      ]);
+      const needsJson = await needsRes.json();
+      const volunteersJson = await volunteersRes.json();
+      if (needsJson?.data) setApiNeeds(needsJson.data);
+      if (volunteersJson?.data) setApiVolunteers(volunteersJson.data);
+    } catch (error) {
+      console.error('Backend connection failed', error);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchPlatformData();
+  }, []);
+
+  const assignTask = async (needId: number, volunteerId: number) => {
     if (userRole !== 'admin') return;
-    setAssignments(prev => [
-      ...prev.filter(a => a.needId !== needId),
-      { needId, volunteerId, assignedAt: new Date() }
-    ]);
+    await fetch(`${API_BASE}/needs/${needId}/assign`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ volunteerId, ngoId: 1 })
+    });
+    await fetchPlatformData();
+  };
+
+  const removeTask = async (needId: number, volunteerId: number) => {
+    if (userRole !== 'admin') return;
+    await fetch(`${API_BASE}/needs/${needId}/assign/${volunteerId}`, { method: 'DELETE' });
+    await fetchPlatformData();
+  };
+
+  const openReportPage = () => {
+    if (userRole) {
+      setActiveTab('submit-report');
+      return;
+    }
+    setRequestAfterLoginTab('submit-report');
+  };
+
+  const submitReport = async () => {
+    setReportMessage('Submitting...');
+    try {
+      const response = await fetch(`${API_BASE}/reports`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reportForm)
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setReportMessage(result?.message || 'Failed to submit report');
+        return;
+      }
+      setReportMessage('Report submitted successfully.');
+      setReportForm({
+        title: '',
+        area: '',
+        type: 'Food',
+        volunteersNeeded: 1,
+        urgency: 'Medium',
+        description: ''
+      });
+      await fetchPlatformData();
+    } catch (error) {
+      setReportMessage('Backend unavailable. Please start backend server.');
+    }
   };
 
   return (
     <div className="font-sans antialiased text-slate-100 selection:bg-green-500 selection:text-black min-h-screen">
       <AnimatePresence mode="wait">
-        {activeTab === 'home' ? (
+        {!userRole && activeTab === 'home' ? (
           <motion.div
             key="home"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <LandingPage onLogin={handleLogin} />
+            <LandingPage onLogin={handleLogin} onOpenReport={openReportPage} />
           </motion.div>
         ) : (
           <motion.div
@@ -993,9 +1111,9 @@ export default function App() {
                         )}
                      </div>
                      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {NEEDS.map(need => {
-                          const assignment = assignments.find(a => a.needId === need.id);
-                          const volunteer = assignment ? VOLUNTEERS.find(v => v.id === assignment.volunteerId) : undefined;
+                        {apiNeeds.map(need => {
+                          const assignedId = need.assignedVolunteerIds?.[0];
+                          const volunteer = assignedId ? apiVolunteers.find(v => v.id === assignedId) : undefined;
                           return (
                             <NeedCard 
                               key={need.id} 
@@ -1003,6 +1121,7 @@ export default function App() {
                               userRole={userRole}
                               assignedVolunteer={volunteer}
                               onAssign={() => setAssigningTo(need.id)}
+                              onRemove={() => volunteer && removeTask(need.id, volunteer.id)}
                             />
                           );
                         })}
@@ -1033,7 +1152,7 @@ export default function App() {
                                 </button>
                               </div>
                               <div className="grid sm:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto pr-2 no-scrollbar">
-                                {VOLUNTEERS.map(v => (
+                                {apiVolunteers.map(v => (
                                   <button
                                     key={v.id}
                                     onClick={() => {
@@ -1066,7 +1185,7 @@ export default function App() {
                     <div className="flex items-end justify-between">
                        <div>
                           <h2 className="text-4xl font-display font-black text-white uppercase tracking-tighter italic">Volunteer Pool</h2>
-                          <p className="text-slate-500 font-medium">Accessing {VOLUNTEERS.length} verified response agents in your quadrant.</p>
+                          <p className="text-slate-500 font-medium">Accessing {apiVolunteers.length} verified response agents in your quadrant.</p>
                        </div>
                        <div className="relative group">
                           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-green-500 transition-colors" size={18} />
@@ -1077,7 +1196,7 @@ export default function App() {
                     <div className="grid lg:grid-cols-2 gap-12">
                       <div className="space-y-6">
                         <h3 className="text-xl font-display font-bold text-white border-l-4 border-green-500 pl-4 mb-8">Verified Digital Identities</h3>
-                        {VOLUNTEERS.slice(0, 2).map(v => (
+                        {apiVolunteers.slice(0, 2).map(v => (
                           <div key={v.id} className="inline-block mr-8 mb-8">
                             <ReflectiveCard 
                               name={v.name.toUpperCase()}
@@ -1094,7 +1213,7 @@ export default function App() {
                       <div className="space-y-8 border-l border-slate-800 pl-12">
                         <h3 className="text-xl font-display font-bold text-white border-l-4 border-blue-500 pl-4 mb-8">Skill Matrices</h3>
                         <div className="grid sm:grid-cols-2 gap-6">
-                          {VOLUNTEERS.map(v => (
+                          {apiVolunteers.map(v => (
                             <VolunteerCard key={v.id} volunteer={v} />
                           ))}
                         </div>
@@ -1102,7 +1221,32 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                {!['dashboard', 'needs', 'volunteers'].includes(activeTab) && (
+                {activeTab === 'submit-report' && (
+                  <div className="p-8 max-w-3xl">
+                    <h2 className="text-4xl font-display font-black text-white uppercase tracking-tighter mb-3">Submit Report</h2>
+                    <p className="text-slate-500 mb-8">Create a new community need report from this page. It is linked from home and dashboard navigation.</p>
+                    <div className="grid gap-4">
+                      <input value={reportForm.title} onChange={(e) => setReportForm(prev => ({ ...prev, title: e.target.value }))} placeholder="Need title" className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3" />
+                      <input value={reportForm.area} onChange={(e) => setReportForm(prev => ({ ...prev, area: e.target.value }))} placeholder="Area / location" className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3" />
+                      <div className="grid grid-cols-2 gap-4">
+                        <select value={reportForm.type} onChange={(e) => setReportForm(prev => ({ ...prev, type: e.target.value }))} className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3">
+                          <option>Food</option><option>Health</option><option>Education</option><option>Shelter</option><option>Environment</option>
+                        </select>
+                        <select value={reportForm.urgency} onChange={(e) => setReportForm(prev => ({ ...prev, urgency: e.target.value }))} className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3">
+                          <option>Low</option><option>Medium</option><option>High</option><option>Critical</option>
+                        </select>
+                      </div>
+                      <input type="number" min={1} value={reportForm.volunteersNeeded} onChange={(e) => setReportForm(prev => ({ ...prev, volunteersNeeded: Number(e.target.value) || 1 }))} placeholder="Volunteers needed" className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3" />
+                      <textarea value={reportForm.description} onChange={(e) => setReportForm(prev => ({ ...prev, description: e.target.value }))} rows={4} placeholder="Description" className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3" />
+                      <div className="flex items-center gap-4">
+                        <button onClick={submitReport} className="bg-green-500 text-black px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest">Submit Report</button>
+                        <button onClick={() => setActiveTab('needs')} className="bg-slate-900 border border-slate-700 text-slate-200 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest">Go to Needs</button>
+                      </div>
+                      {reportMessage && <p className="text-sm text-green-400">{reportMessage}</p>}
+                    </div>
+                  </div>
+                )}
+                {!['dashboard', 'needs', 'volunteers', 'submit-report'].includes(activeTab) && (
                   <div className="flex flex-col items-center justify-center h-full text-slate-600 italic">
                     <div className="w-24 h-24 bg-slate-900/50 rounded-[2.5rem] flex items-center justify-center text-slate-800 mb-6 border border-slate-800">
                        <Zap size={40} />
