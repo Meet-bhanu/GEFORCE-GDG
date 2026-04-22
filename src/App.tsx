@@ -50,6 +50,8 @@ import {
 import ScrollReveal from './components/ScrollReveal';
 import Stepper, { Step } from './components/Stepper';
 import ReflectiveCard from './components/ReflectiveCard';
+import BlurText from './components/BlurText';
+import FadeContent from './components/FadeContent';
 
 // --- Types ---
 type UserRole = 'admin' | 'guest' | 'public' | null;
@@ -591,31 +593,42 @@ const LandingPage = ({ onLogin }: { onLogin: (role: UserRole) => void }) => {
         <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[140px] opacity-20 -z-10 -translate-x-1/2 translate-y-1/2"></div>
 
         <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
+          <FadeContent blur={true} duration={800} distance={40}>
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/10 border border-green-500/20 mb-8">
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
               <span className="text-[10px] font-black text-green-500 uppercase tracking-[0.2em]">Open Network v4.2</span>
             </div>
-            <h1 className="text-6xl md:text-8xl font-display font-black text-white leading-[0.9] tracking-tighter mb-8">
-              Connecting <br />
-              <span className="text-green-500">Community Needs</span> <br />
-              with Real-Time Help
-            </h1>
-            <p className="text-xl text-slate-400 mb-10 max-w-xl leading-relaxed font-display font-medium">
-              We collect, analyze, and act on community needs to build a stronger and more compassionate society.
-            </p>
-            <div className="flex flex-wrap gap-5">
-              <button className="bg-green-500 text-black px-10 py-5 rounded-[1.5rem] font-black uppercase tracking-widest shadow-2xl shadow-green-500/30 hover:bg-green-400 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-3 group">
-                <ClipboardList size={22} className="group-hover:rotate-12 transition-transform" /> Report a Need
-              </button>
-              <button className="bg-slate-900 border border-slate-800 text-white px-10 py-5 rounded-[1.5rem] font-black uppercase tracking-widest hover:border-slate-600 hover:bg-slate-800 transition-all flex items-center gap-3">
-                <Users size={22} /> Become a Volunteer
-              </button>
+            
+            <div className="relative mb-8">
+              <BlurText 
+                text="Connecting Community Needs"
+                delay={50}
+                animateBy="words"
+                direction="top"
+                className="text-6xl md:text-8xl font-display font-black text-white leading-[0.9] tracking-tighter"
+              />
+              <BlurText 
+                text="with Real-Time Help"
+                delay={50}
+                animateBy="words"
+                direction="bottom"
+                className="text-6xl md:text-8xl font-display font-black text-green-500 leading-[0.9] tracking-tighter"
+              />
             </div>
+
+            <FadeContent blur={true} duration={1000} delay={400}>
+              <p className="text-xl text-slate-400 mb-10 max-w-xl leading-relaxed font-display font-medium">
+                We collect, analyze, and act on community needs to build a stronger and more compassionate society.
+              </p>
+              <div className="flex flex-wrap gap-5">
+                <button className="bg-green-500 text-black px-10 py-5 rounded-[1.5rem] font-black uppercase tracking-widest shadow-2xl shadow-green-500/30 hover:bg-green-400 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-3 group">
+                  <ClipboardList size={22} className="group-hover:rotate-12 transition-transform" /> Report a Need
+                </button>
+                <button className="bg-slate-900 border border-slate-800 text-white px-10 py-5 rounded-[1.5rem] font-black uppercase tracking-widest hover:border-slate-600 hover:bg-slate-800 transition-all flex items-center gap-3">
+                  <Users size={22} /> Become a Volunteer
+                </button>
+              </div>
+            </FadeContent>
             
             <div className="mt-12 flex items-center gap-8 border-t border-slate-800/50 pt-12">
                <div className="flex -space-x-3">
@@ -630,7 +643,7 @@ const LandingPage = ({ onLogin }: { onLogin: (role: UserRole) => void }) => {
                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Active Volunteers</p>
                </div>
             </div>
-          </motion.div>
+          </FadeContent>
 
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -690,31 +703,33 @@ const LandingPage = ({ onLogin }: { onLogin: (role: UserRole) => void }) => {
 
       {/* Feature Grid Bar */}
       <section className="py-12 px-8">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-           {[
-             { title: 'Smart Data Collection', desc: 'Gather real-time data from NGOs and communities', icon: ShieldCheck, bg: 'bg-[#10b981]' },
-             { title: 'AI-Powered Insights', desc: 'Identify the most urgent needs and priorities', icon: LayoutDashboard, bg: 'bg-[#6366f1]' },
-             { title: 'Instant Action', desc: 'Match volunteers with the right tasks instantly', icon: Zap, bg: 'bg-[#3b82f6]' },
-             { title: 'Stronger Communities', desc: 'Work together to create lasting impact', icon: Heart, bg: 'bg-[#f43f5e]' }
-           ].map((feature, i) => (
-             <div key={i} className="bg-slate-900/30 border border-slate-800/50 p-8 rounded-[2rem] hover:bg-slate-800/40 transition-all group">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500`} style={{ backgroundColor: `${feature.bg}20` }}>
-                  <feature.icon size={26} style={{ color: feature.bg }} />
-                </div>
-                <h3 className="font-display font-bold text-lg text-white mb-2 leading-tight">{feature.title}</h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">{feature.desc}</p>
-             </div>
-           ))}
-        </div>
+        <FadeContent blur={true} duration={1000} threshold={0.2}>
+          <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+             {[
+               { title: 'Smart Data Collection', desc: 'Gather real-time data from NGOs and communities', icon: ShieldCheck, bg: '#10b981' },
+               { title: 'AI-Powered Insights', desc: 'Identify the most urgent needs and priorities', icon: LayoutDashboard, bg: '#6366f1' },
+               { title: 'Instant Action', desc: 'Match volunteers with the right tasks instantly', icon: Zap, bg: '#3b82f6' },
+               { title: 'Stronger Communities', desc: 'Work together to create lasting impact', icon: Heart, bg: '#f43f5e' }
+             ].map((feature, i) => (
+               <div key={i} className="bg-slate-900/30 border border-slate-800/50 p-8 rounded-[2rem] hover:bg-slate-800/40 transition-all group">
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500`} style={{ backgroundColor: `${feature.bg}20` }}>
+                    <feature.icon size={26} style={{ color: feature.bg }} />
+                  </div>
+                  <h3 className="font-display font-bold text-lg text-white mb-2 leading-tight">{feature.title}</h3>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed">{feature.desc}</p>
+               </div>
+             ))}
+          </div>
+        </FadeContent>
       </section>
 
       {/* Section Header */}
       <section id="explore-needs" className="pt-24 pb-12 px-8">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-end justify-between gap-6">
-           <div>
+           <FadeContent blur={true} duration={800} threshold={0.3}>
               <h2 className="text-5xl font-display font-black text-white tracking-tighter mb-4">Explore <span className="text-green-500 underline decoration-green-500/20 underline-offset-8">Urgent Needs</span></h2>
               <p className="text-slate-500 font-medium tracking-tight">Real-time view of community needs and priorities</p>
-           </div>
+           </FadeContent>
            <button className="bg-slate-900 border border-slate-800 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:border-slate-600 transition-all flex items-center gap-3">
              View All Needs <ArrowRight size={16} className="text-green-500" />
            </button>
@@ -722,49 +737,55 @@ const LandingPage = ({ onLogin }: { onLogin: (role: UserRole) => void }) => {
       </section>
 
       {/* Needs Grid */}
-      <section className="pb-32 px-8 font-sans">
-        <div className="max-w-7xl mx-auto grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {NEEDS.map(need => (
-            <NeedCard key={need.id} need={need} userRole={null} />
-          ))}
-        </div>
+      <section className="pb-32 px-8 font-sans text-white">
+        <FadeContent blur={true} duration={1200} threshold={0.1}>
+          <div className="max-w-7xl mx-auto grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {NEEDS.map(need => (
+              <NeedCard key={need.id} need={need} userRole={null} />
+            ))}
+          </div>
+        </FadeContent>
       </section>
 
       {/* Massive Stats Strip */}
       <section className="py-20 bg-black/40 border-y border-slate-800/50 relative overflow-hidden">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-12 relative z-10 px-8">
-           {[
-             { label: 'Needs Reported', value: '12,580+', icon: ClipboardList, color: 'text-green-500' },
-             { label: 'Active Volunteers', value: '8,430+', icon: Users, color: 'text-blue-500' },
-             { label: 'NGOs & Groups', value: '1,250+', icon: Globe, color: 'text-amber-500' },
-             { label: 'Lives Impacted', value: '24,350+', icon: Heart, color: 'text-rose-500' },
-           ].map((stat, i) => (
-             <div key={i} className="flex items-center gap-6 group">
-                <div className={`w-16 h-16 rounded-3xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 group-hover:scale-110 group-hover:rotate-12 transition-all duration-500 ${stat.color}`}>
-                   <stat.icon size={28} />
-                </div>
-                <div>
-                   <p className="text-4xl font-display font-black text-white leading-none mb-1">{stat.value}</p>
-                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{stat.label}</p>
-                </div>
-             </div>
-           ))}
-        </div>
+        <FadeContent blur={true} duration={1000} threshold={0.4}>
+          <div className="max-w-7xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-12 relative z-10 px-8">
+             {[
+               { label: 'Needs Reported', value: '12,580+', icon: ClipboardList, color: 'text-green-500' },
+               { label: 'Active Volunteers', value: '8,430+', icon: Users, color: 'text-blue-500' },
+               { label: 'NGOs & Groups', value: '1,250+', icon: Globe, color: 'text-amber-500' },
+               { label: 'Lives Impacted', value: '24,350+', icon: Heart, color: 'text-rose-500' },
+             ].map((stat, i) => (
+               <div key={i} className="flex items-center gap-6 group">
+                  <div className={`w-16 h-16 rounded-3xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 group-hover:scale-110 group-hover:rotate-12 transition-all duration-500 ${stat.color}`}>
+                     <stat.icon size={28} />
+                  </div>
+                  <div>
+                     <p className="text-4xl font-display font-black text-white leading-none mb-1">{stat.value}</p>
+                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{stat.label}</p>
+                  </div>
+               </div>
+             ))}
+          </div>
+        </FadeContent>
       </section>
 
       {/* Report a Need Section with STEPPER */}
       <section id="ngos" className="py-32 px-8 bg-slate-900/20">
         <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-20 items-center">
            <div className="hidden lg:block relative">
-             <div className="absolute inset-0 bg-blue-500/10 rounded-full blur-[100px] opacity-20 -z-10 translate-x-[20%] translate-y-[-20%]"></div>
-             <div className="rounded-[4rem] overflow-hidden shadow-2xl border-[16px] border-[#020617] rotate-[-2deg] hover:rotate-0 transition-all duration-700">
-               <img src="https://images.unsplash.com/photo-1542601906990-b4d3fb773b09?w=800&auto=format&fit=crop" className="w-full aspect-[4/5] object-cover grayscale opacity-80" alt="Field action" />
-             </div>
-             {/* Text Overlay */}
-             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4/5 text-center p-8 bg-black/60 backdrop-blur-xl rounded-[2.5rem] border border-white/10 shadow-2xl">
-                <h3 className="text-4xl font-display font-black text-white mb-4 tracking-tighter uppercase">Variation 3</h3>
-                <p className="text-sm font-medium text-slate-300 italic">"Our field data transforms into immediate volunteer responses within minutes of submission."</p>
-             </div>
+             <FadeContent blur={true} duration={1500} threshold={0.2} initialOpacity={0}>
+               <div className="absolute inset-0 bg-blue-500/10 rounded-full blur-[100px] opacity-20 -z-10 translate-x-[20%] translate-y-[-20%]"></div>
+               <div className="rounded-[4rem] overflow-hidden shadow-2xl border-[16px] border-[#020617] rotate-[-2deg] hover:rotate-0 transition-all duration-700">
+                 <img src="https://images.unsplash.com/photo-1542601906990-b4d3fb773b09?w=800&auto=format&fit=crop" className="w-full aspect-[4/5] object-cover grayscale opacity-80" alt="Field action" />
+               </div>
+               {/* Text Overlay */}
+               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4/5 text-center p-8 bg-black/60 backdrop-blur-xl rounded-[2.5rem] border border-white/10 shadow-2xl">
+                  <h3 className="text-4xl font-display font-black text-white mb-4 tracking-tighter uppercase">Variation 3</h3>
+                  <p className="text-sm font-medium text-slate-300 italic">"Our field data transforms into immediate volunteer responses within minutes of submission."</p>
+               </div>
+             </FadeContent>
            </div>
 
            <div>
