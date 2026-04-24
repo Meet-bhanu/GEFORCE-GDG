@@ -94,22 +94,77 @@ let users = [
 
 // --- Home/Dashboard Mock Data ---
 let analyticsData = [
-  { name: 'Mon', needs: 400, matched: 240, impact: 300 },
-  { name: 'Tue', needs: 600, matched: 480, impact: 500 },
-  { name: 'Wed', needs: 400, matched: 350, impact: 400 },
-  { name: 'Thu', needs: 900, matched: 700, impact: 800 },
-  { name: 'Fri', needs: 1100, matched: 800, impact: 950 },
-  { name: 'Sat', needs: 1200, matched: 1000, impact: 1100 },
-  { name: 'Sun', needs: 1000, matched: 850, impact: 900 }
+  { name: 'Mon', needs: 400, matched: 240, impact: 300, volunteers: 120 },
+  { name: 'Tue', needs: 600, matched: 480, impact: 500, volunteers: 150 },
+  { name: 'Wed', needs: 400, matched: 350, impact: 400, volunteers: 130 },
+  { name: 'Thu', needs: 900, matched: 700, impact: 800, volunteers: 200 },
+  { name: 'Fri', needs: 1100, matched: 800, impact: 950, volunteers: 250 },
+  { name: 'Sat', needs: 1200, matched: 1000, impact: 1100, volunteers: 300 },
+  { name: 'Sun', needs: 1000, matched: 850, impact: 900, volunteers: 280 }
 ];
 
 let pieData = [
-  { name: 'Food', value: 400, color: '#22c55e' },
-  { name: 'Health', value: 300, color: '#f59e0b' },
-  { name: 'Education', value: 200, color: '#3b82f6' },
-  { name: 'Shelter', value: 100, color: '#e11d48' },
-  { name: 'Other', value: 50, color: '#64748b' }
+  { name: 'Food', value: 450, color: '#22c55e' },
+  { name: 'Health', value: 320, color: '#f59e0b' },
+  { name: 'Education', value: 240, color: '#3b82f6' },
+  { name: 'Shelter', value: 180, color: '#e11d48' },
+  { name: 'Environment', value: 110, color: '#06b6d4' },
+  { name: 'Other', value: 60, color: '#64748b' }
 ];
+
+let skillDistribution = [
+  { name: 'Logistics', value: 300, color: '#10b981' },
+  { name: 'Healthcare', value: 200, color: '#3b82f6' },
+  { name: 'Education', value: 150, color: '#8b5cf6' },
+  { name: 'Tech', value: 100, color: '#f59e0b' },
+  { name: 'General', value: 250, color: '#64748b' }
+];
+
+let aiInsights = [
+  {
+    title: 'Urgency Spike Detected',
+    content: 'We noticed a 15% increase in high-urgency reports in the Western region. Recommended resource reallocation from North to West to maintain response velocity.',
+    type: 'warning'
+  },
+  {
+    title: 'Volunteer Efficiency Up',
+    content: 'The average task resolution time has dropped by 1.2 hours this week due to improved skill-matching algorithms.',
+    type: 'success'
+  },
+  {
+    title: 'Strategic Coverage Gap',
+    content: 'Environmental needs are growing in the Southern district, but volunteer registration for "Logistics" is low in that area.',
+    type: 'info'
+  }
+];
+
+let monthlyGrowth = [
+  { month: 'Jan', impact: 4000, volunteers: 2400 },
+  { month: 'Feb', impact: 3000, volunteers: 1398 },
+  { month: 'Mar', impact: 2000, volunteers: 9800 },
+  { month: 'Apr', impact: 2780, volunteers: 3908 },
+  { month: 'May', impact: 1890, volunteers: 4800 },
+  { month: 'Jun', impact: 2390, volunteers: 3800 },
+];
+
+let regionalDistribution = [
+  { region: 'North', value: 35 },
+  { region: 'South', value: 25 },
+  { region: 'East', value: 20 },
+  { region: 'West', value: 20 },
+];
+
+let appSettings = {
+  notifications: true,
+  autoMatching: true,
+  privacyMode: 'High',
+  theme: 'Dark',
+  regionFilters: ['Maharashtra', 'Gujarat', 'Karnataka'],
+  apiKeys: {
+    maps: '••••••••••••••••',
+    analytics: '••••••••••••••••'
+  }
+};
 
 let recentActivities = [
   { text: 'Food distribution drive finalized in Panchavati', status: 'Completed', color: 'text-green-500 bg-green-500/10 border-green-500/20' },
@@ -327,6 +382,17 @@ app.post('/api/volunteers', (req, res) => {
   res.status(201).json({ success: true, data: newVolunteer, message: 'Successfully registered as a volunteer' });
 });
 
+app.delete('/api/volunteers/:id', (req, res) => {
+  const id = Number(req.params.id);
+  const index = volunteers.findIndex(v => v.id === id);
+  if (index !== -1) {
+    volunteers.splice(index, 1);
+    res.json({ success: true, message: 'Volunteer deleted successfully' });
+  } else {
+    res.status(404).json({ success: false, message: 'Volunteer not found' });
+  }
+});
+
 // Get all volunteers
 app.get('/api/volunteers', (req, res) => {
   const { skill, availability, location, language, status, verified } = req.query;
@@ -442,8 +508,38 @@ app.get('/api/volunteers/:id/matches', (req, res) => {
     })
     .sort((a, b) => b.matchScore - a.matchScore)
     .slice(0, 5);
-
   return res.json({ success: true, data: matchedNeeds });
+});
+
+app.get('/api/auth/me', (req, res) => {
+  // Mock session check
+  res.json({
+    success: true,
+    data: {
+      id: 'usr_882',
+      name: 'Admin User',
+      email: 'admin@geforce.demo',
+      role: 'admin',
+      lastLogin: new Date().toISOString(),
+      permissions: ['read:all', 'write:settings', 'delete:reports']
+    }
+  });
+});
+
+app.get('/api/user/profile', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      bio: 'System Administrator for the Geforce Demo Platform.',
+      location: 'Mumbai, India',
+      avatar: 'https://i.pravatar.cc/150?u=admin',
+      stats: {
+        actionsPerformed: 124,
+        reportsReviewed: 88,
+        uptimeContributed: '142h'
+      }
+    }
+  });
 });
 
 app.post('/api/needs/:id/assign', (req, res) => {
@@ -507,23 +603,178 @@ app.get('/api/volunteers/:id/tasks', (req, res) => {
 
 // 4. Dashboard / Home Page Data
 app.get('/api/dashboard', (req, res) => {
+  const { region, urgency } = req.query;
+  const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  
+  let filteredNeeds = needs;
+  if (region && region !== 'all') {
+    filteredNeeds = filteredNeeds.filter(n => 
+      (n.area && n.area.toLowerCase().includes(region.toLowerCase())) || 
+      (n.location && n.location.toLowerCase().includes(region.toLowerCase()))
+    );
+  }
+  if (urgency && urgency !== 'all') {
+    filteredNeeds = filteredNeeds.filter(n => n.urgency && n.urgency.toLowerCase() === urgency.toLowerCase());
+  }
+  
   const stats = {
-    needsReported: { value: '1,248', growth: '+ 12%' },
-    inProgress: { value: '832', growth: '+ 8%' },
-    completed: { value: '416', growth: '+ 15%' },
-    activeVolunteers: { value: '8,430', growth: '+ 20%' }
+    needsReported: { 
+      value: filteredNeeds.length.toLocaleString(), 
+      growth: `+${Math.floor(Math.random() * 20)}%`,
+      trend: filteredNeeds.filter(n => n.createdAt > last24h).length
+    },
+    inProgress: { 
+      value: filteredNeeds.filter(n => n.status === 'in-progress').length.toLocaleString(), 
+      growth: '+ 8%' 
+    },
+    completed: { 
+      value: filteredNeeds.filter(n => n.status === 'resolved').length.toLocaleString(), 
+      growth: '+ 15%',
+      impactScore: filteredNeeds.filter(n => n.status === 'resolved').length * 10
+    },
+    activeVolunteers: { 
+      value: volunteers.length.toLocaleString(), 
+      growth: '+ 20%' 
+    }
   };
+
+  const matchRate = filteredNeeds.length > 0 ? 
+    Math.round((filteredNeeds.filter(n => n.assignedVolunteerIds.length > 0).length / filteredNeeds.length) * 100) : 0;
 
   res.json({
     success: true,
     data: {
       stats,
+      matchRate,
       analyticsData,
       pieData,
-      recentActivities,
-      priorityPipeline
+      recentActivities: filteredNeeds.slice(-8).reverse().map(n => ({
+        text: `${n.title} reported in ${n.area}`,
+        status: n.status === 'open' ? 'New Task' : n.status === 'in-progress' ? 'In Transit' : 'Completed',
+        color: n.status === 'open' ? 'text-amber-500 bg-amber-500/10 border-amber-500/20' : 
+               n.status === 'in-progress' ? 'text-blue-500 bg-blue-500/10 border-blue-500/20' : 
+               'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
+        time: 'JUST NOW'
+      })),
+      priorityPipeline: filteredNeeds
+        .filter(n => n.status === 'open')
+        .sort((a, b) => (b.urgencyScore || 0) - (a.urgencyScore || 0))
+        .slice(0, 5)
+        .map(n => ({
+          title: n.title,
+          loc: n.area,
+          urgency: n.urgency,
+          avatar: `https://i.pravatar.cc/150?u=${n.id}`,
+          color: n.urgency === 'Critical' ? 'rose' : n.urgency === 'High' ? 'amber' : 'blue'
+        })),
+      systemLogs: [
+        { id: 1, event: 'AI MATCHING', detail: '34 volunteers matched to Priority A needs', time: '12m ago', type: 'info' },
+        { id: 2, event: 'URGENCY SPIKE', detail: 'Abnormal activity detected in Nashik West', time: '45m ago', type: 'warning' },
+        { id: 3, event: 'BACKEND SYNC', detail: 'Platform data synchronized with Regional Hubs', time: '1h ago', type: 'success' }
+      ]
     }
   });
+});
+
+app.get('/api/export', (req, res) => {
+  const { type } = req.query;
+  
+  if (type === 'needs' || !type) {
+    const header = "ID,Title,Area,Urgency,Status,VolunteersNeeded,AssignedVolunteers\n";
+    const rows = needs.map(n => 
+      `${n.id},"${n.title}","${n.area}",${n.urgency},${n.status},${n.volunteersNeeded},${n.assignedVolunteerIds.length}`
+    ).join('\n');
+    res.header('Content-Type', 'text/csv');
+    res.attachment('needs_export.csv');
+    return res.send(header + rows);
+  }
+  
+  return res.status(400).json({ success: false, message: 'Invalid export type requested' });
+});
+
+let notificationsDb = [
+  { id: 1, title: 'System Update', message: 'Platform data synchronized successfully.', read: false, createdAt: new Date().toISOString() },
+  { id: 2, title: 'New Critical Need', message: 'A critical need was reported in Nashik.', read: false, createdAt: new Date().toISOString() },
+];
+
+app.get('/api/notifications', (req, res) => {
+  res.json({ success: true, data: notificationsDb });
+});
+
+app.patch('/api/notifications/:id/read', (req, res) => {
+  const notifId = Number(req.params.id);
+  const notif = notificationsDb.find(n => n.id === notifId);
+  if (notif) {
+    notif.read = true;
+    res.json({ success: true, data: notif });
+  } else {
+    res.status(404).json({ success: false, message: 'Notification not found' });
+  }
+});
+
+app.get('/api/all-reports', (req, res) => {
+  const reportList = needs.map(n => ({
+    id: n.id,
+    title: n.title,
+    location: n.area || n.location,
+    type: n.type,
+    urgency: n.urgency,
+    submittedBy: n.requestedBy || 'Anonymous User',
+    status: n.status,
+    timestamp: n.createdAt || n.datePosted,
+    description: n.description,
+    volunteersNeeded: n.volunteersNeeded
+  })).reverse();
+
+  res.json({
+    success: true,
+    count: reportList.length,
+    data: reportList
+  });
+});
+
+app.get('/api/analytics', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      dailyTrends: analyticsData,
+      categoryDistribution: pieData,
+      skillDistribution: skillDistribution,
+      monthlyGrowth: monthlyGrowth,
+      regionalDistribution: regionalDistribution,
+      aiInsights: aiInsights,
+      impactVelocity: [
+        { name: 'Week 1', score: 45, volunteers: 12 },
+        { name: 'Week 2', score: 52, volunteers: 18 },
+        { name: 'Week 3', score: 48, volunteers: 15 },
+        { name: 'Week 4', score: 61, volunteers: 22 },
+        { name: 'Week 5', score: 55, volunteers: 20 },
+        { name: 'Week 6', score: 67, volunteers: 28 }
+      ],
+      resourceAllocation: [
+        { category: 'Logistics', used: 85, total: 100 },
+        { category: 'Medical', used: 60, total: 100 },
+        { category: 'Food', used: 95, total: 100 },
+        { category: 'Shelter', used: 40, total: 100 },
+        { category: 'Admin', used: 30, total: 100 }
+      ],
+      summaryStats: [
+        { label: 'Total Impact Score', value: '84.2k', trend: '+14%', color: 'text-green-500' },
+        { label: 'Resource Efficiency', value: '92%', trend: '+5%', color: 'text-blue-500' },
+        { label: 'Response Velocity', value: '4.2h', trend: '-1.2h', color: 'text-amber-500' },
+        { label: 'Network Stability', value: '99.9%', trend: 'Stable', color: 'text-indigo-500' }
+      ]
+    }
+  });
+});
+
+app.get('/api/settings', (req, res) => {
+  res.json({ success: true, data: appSettings });
+});
+
+app.patch('/api/settings', (req, res) => {
+  appSettings = { ...appSettings, ...req.body };
+  res.json({ success: true, data: appSettings, message: 'Settings updated successfully' });
 });
 
 app.get('/api/dashboard/:role', (req, res) => {
@@ -860,6 +1111,22 @@ app.get('/api/reports/export', (req, res) => {
     message: `Mock ${format.toUpperCase()} export ready`,
     downloadUrl: `/downloads/community-impact-report.${format}`
   });
+});
+
+let userSettings = { theme: 'dark' };
+
+app.get('/api/settings', (req, res) => {
+  res.json({ success: true, data: userSettings });
+});
+
+app.patch('/api/settings/theme', (req, res) => {
+  const { theme } = req.body;
+  if (theme === 'light' || theme === 'dark') {
+    userSettings.theme = theme;
+    res.json({ success: true, data: userSettings });
+  } else {
+    res.status(400).json({ success: false, message: 'Invalid theme provided.' });
+  }
 });
 
 // Start the server

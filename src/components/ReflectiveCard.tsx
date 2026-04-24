@@ -37,48 +37,7 @@ const ReflectiveCard = ({
   role = 'SENIOR DEVELOPER',
   idNumber = '8901-2345-6789'
 }: ReflectiveCardProps) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [hasWebcam, setHasWebcam] = React.useState(true);
-
-  useEffect(() => {
-    let stream: MediaStream | null = null;
-
-    const startWebcam = async () => {
-      try {
-        const constraints = {
-          video: {
-            width: { ideal: 640 },
-            height: { ideal: 480 },
-            facingMode: 'user'
-          }
-        };
-
-        // Try with ideal constraints first
-        stream = await navigator.mediaDevices.getUserMedia(constraints)
-          .catch(() => {
-            // Fallback to any video device
-            console.warn('Strict webcam constraints failed, trying basic video...');
-            return navigator.mediaDevices.getUserMedia({ video: true });
-          });
-
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-        setHasWebcam(true);
-      } catch (err) {
-        console.error('Error accessing webcam:', err);
-        setHasWebcam(false);
-      }
-    };
-
-    startWebcam();
-
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, []);
+  const hasWebcam = false;
 
   const baseFrequency = 0.03 / Math.max(0.1, noiseScale);
   const saturation = 1 - Math.max(0, Math.min(1, grayscale));
@@ -142,15 +101,12 @@ const ReflectiveCard = ({
         </defs>
       </svg>
 
-      <video ref={videoRef} autoPlay playsInline muted className={`reflective-video ${!hasWebcam ? 'hidden' : ''}`} />
-      {!hasWebcam && (
-        <div className="reflective-video-fallback">
+      <div className="reflective-video-fallback">
           <div className="fallback-avatar">
             <UserIcon size={120} strokeWidth={1} />
           </div>
           <div className="fallback-gradient" />
         </div>
-      )}
 
       <div className="reflective-noise" />
       <div className="reflective-sheen" />

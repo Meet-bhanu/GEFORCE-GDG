@@ -30,7 +30,8 @@ import {
   Moon,
   Sun,
   User as UserIcon,
-  Lock as LockIcon
+  Lock as LockIcon,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -45,7 +46,9 @@ import {
   Pie,
   Cell,
   AreaChart,
-  Area
+  Area,
+  BarChart,
+  Bar
 } from 'recharts';
 import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
 import ScrollReveal from './components/ScrollReveal';
@@ -143,7 +146,6 @@ const Sidebar = ({ activeTab, setActiveTab, userRole, onLogout }: { activeTab: s
     { id: 'needs', icon: Layers, label: 'Needs' },
     { id: 'volunteers', icon: Users, label: 'Volunteers' },
     { id: 'submit-report', icon: FileText, label: 'Submit Report' },
-    { id: 'reports', icon: ClipboardList, label: 'Reports' },
     { id: 'analytics', icon: BarChart3, label: 'Analytics' },
     { id: 'settings', icon: Settings, label: 'Settings' },
   ];
@@ -188,7 +190,7 @@ const Sidebar = ({ activeTab, setActiveTab, userRole, onLogout }: { activeTab: s
   );
 };
 
-const Header = ({ userRole }: { userRole: UserRole }) => (
+const Header = ({ userRole, setActiveTab, theme, toggleTheme }: { userRole: UserRole, setActiveTab: (t: string) => void, theme: string, toggleTheme: () => void }) => (
   <div className="h-20 border-b border-slate-800 bg-[#020617]/80 backdrop-blur-xl sticky top-0 z-40 px-8 flex items-center justify-between">
     <div className="flex items-center gap-4 flex-1">
       <div className="relative w-full max-w-lg">
@@ -201,12 +203,12 @@ const Header = ({ userRole }: { userRole: UserRole }) => (
       </div>
     </div>
     <div className="flex items-center gap-6">
-      <button className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-green-500 hover:border-green-500/50 transition-all">
-        <Moon size={20} />
-      </button>
-      <button className="relative p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-green-500 hover:border-green-500/50 transition-all">
+      <button 
+        onClick={() => setActiveTab('notifications')}
+        className="relative p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-green-500 hover:border-green-500/50 transition-all"
+      >
         <Bell size={20} />
-        <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-[#020617]"></span>
+        <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-[#020617] animate-ping"></span>
       </button>
       <div className="flex items-center gap-4 pl-6 border-l border-slate-800">
         <div className="text-right hidden sm:block">
@@ -221,7 +223,7 @@ const Header = ({ userRole }: { userRole: UserRole }) => (
   </div>
 );
 
-const VolunteerCard = ({ volunteer }: { volunteer: typeof VOLUNTEERS[0]; key?: any }) => (
+const VolunteerCard = ({ volunteer, userRole, onDelete }: { volunteer: typeof VOLUNTEERS[0]; userRole?: string; onDelete?: () => void; key?: any }) => (
   <motion.div 
     whileHover={{ y: -8, scale: 1.02 }}
     className="group bg-slate-900/50 border border-slate-800 rounded-3xl p-5 hover:border-green-500/30 transition-all duration-500"
@@ -249,18 +251,26 @@ const VolunteerCard = ({ volunteer }: { volunteer: typeof VOLUNTEERS[0]; key?: a
         <Clock size={14} className="text-green-500" />
         <span className="text-xs font-bold text-white">{volunteer.hours} Hours</span>
       </div>
-      <button className="text-[10px] font-bold text-green-500 uppercase tracking-widest hover:translate-x-1 transition-transform">Profile &rarr;</button>
+      <div className="flex gap-2 items-center">
+        {userRole === 'admin' && onDelete && (
+          <button onClick={onDelete} className="text-[10px] p-1.5 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors">
+            <Trash2 size={14} />
+          </button>
+        )}
+        <button className="text-[10px] font-bold text-green-500 uppercase tracking-widest hover:translate-x-1 transition-transform">Profile &rarr;</button>
+      </div>
     </div>
   </motion.div>
 );
 
 const NeedCard = ({ need, assignedVolunteer, userRole, onAssign, onRemove }: any) => {
   const colorMap = {
-    rose: 'border-rose-500 text-rose-500 bg-rose-500/10',
-    amber: 'border-amber-500 text-amber-500 bg-amber-500/10',
-    emerald: 'border-green-500 text-green-500 bg-green-500/10',
-    blue: 'border-blue-500 text-blue-500 bg-blue-500/10'
+    Critical: 'border-rose-500 text-rose-500 bg-rose-500/10',
+    High: 'border-amber-500 text-amber-500 bg-amber-500/10',
+    Medium: 'border-blue-500 text-blue-500 bg-blue-500/10',
+    Low: 'border-green-500 text-green-500 bg-green-500/10'
   };
+  const themeColor = colorMap[need.urgency as keyof typeof colorMap] || colorMap.Medium;
 
   return (
     <motion.div 
@@ -275,10 +285,10 @@ const NeedCard = ({ need, assignedVolunteer, userRole, onAssign, onRemove }: any
         </div>
       )}
       <div className="relative h-48 overflow-hidden">
-        <img src={need.image} alt={need.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 scale-105 group-hover:scale-100" />
+        <img src={need.image || 'https://images.unsplash.com/photo-1593113565694-c6c7475fbd11?auto=format&fit=crop&w=400&q=80'} alt={need.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 scale-105 group-hover:scale-100" />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 to-transparent"></div>
         <div className="absolute top-4 left-4">
-          <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border ${colorMap[need.color as keyof typeof colorMap]}`}>
+          <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border ${themeColor}`}>
             {need.urgency} Priority
           </span>
         </div>
@@ -411,31 +421,122 @@ const NgosPage = ({ userRole }: { userRole: UserRole }) => {
 
 // --- Main Pages ---
 
-const DashboardPage = () => {
+const NotificationsPage = () => {
+  const [notifications, setNotifications] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetch(`${API_BASE}/notifications`)
+      .then(res => res.json())
+      .then(json => {
+        if (json.success) setNotifications(json.data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch notifications', err);
+        setLoading(false);
+      });
+  }, []);
+
+  const markAsRead = (id: number) => {
+    fetch(`${API_BASE}/notifications/${id}/read`, { method: 'PATCH' })
+      .then(() => {
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+      });
+  };
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-full min-h-[400px]">
+      <div className="w-10 h-10 border-4 border-green-500/20 border-t-green-500 rounded-full animate-spin"></div>
+    </div>
+  );
+
   return (
     <div className="p-8 space-y-8 pb-20">
       <div className="flex items-center justify-between mb-2">
         <div>
-          <h2 className="text-3xl font-display font-bold text-white tracking-tight">System Overview</h2>
+          <h2 className="text-3xl font-display font-black text-white tracking-tight uppercase italic">System Alerts</h2>
+          <p className="text-slate-500 text-sm font-medium">Real-time notifications and updates.</p>
+        </div>
+      </div>
+      <div className="bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-800 shadow-xl">
+        <div className="space-y-4">
+          {notifications.length === 0 ? (
+            <p className="text-slate-500 text-center py-10 font-bold">No notifications to display.</p>
+          ) : (
+            notifications.map((n: any) => (
+              <div key={n.id} className={`p-4 rounded-2xl border ${n.read ? 'bg-slate-800/20 border-slate-800' : 'bg-black/40 border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.1)]'} flex justify-between items-center transition-all`}>
+                <div className="flex items-start gap-4">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${n.read ? 'bg-slate-800 text-slate-500' : 'bg-green-500/10 text-green-500'}`}>
+                    <Bell size={18} />
+                  </div>
+                  <div>
+                    <h4 className={`text-sm font-bold ${n.read ? 'text-slate-400' : 'text-white'}`}>{n.title}</h4>
+                    <p className={`text-xs ${n.read ? 'text-slate-500' : 'text-slate-300'} mt-1`}>{n.message}</p>
+                    <p className="text-[9px] font-black text-slate-500 uppercase mt-2">{new Date(n.createdAt).toLocaleString()}</p>
+                  </div>
+                </div>
+                {!n.read && (
+                  <button onClick={() => markAsRead(n.id)} className="text-[10px] font-black text-green-500 uppercase tracking-widest hover:underline px-4 py-2 border border-green-500/20 rounded-xl hover:bg-green-500/10 transition-colors">
+                    Mark Read
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DashboardPage = () => {
+  const [data, setData] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetch(`${API_BASE}/dashboard`)
+      .then(res => res.json())
+      .then(json => {
+        if (json.success) setData(json.data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch dashboard data', err);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-full min-h-[400px]">
+      <div className="w-10 h-10 border-4 border-green-500/20 border-t-green-500 rounded-full animate-spin"></div>
+    </div>
+  );
+
+  if (!data) return null;
+
+  return (
+    <div className="p-8 space-y-8 pb-20">
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <h2 className="text-3xl font-display font-black text-white tracking-tight uppercase italic">Intelligence Hub</h2>
           <p className="text-slate-500 text-sm font-medium">Real-time pulse of community impact and resource allocation.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="bg-slate-900 border border-slate-800 text-slate-300 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 hover:border-green-500/50 transition-colors">
-            This Week <ChevronDown size={14} />
-          </button>
-          <button className="bg-green-500 text-black px-5 py-2.5 rounded-xl text-xs font-black shadow-lg shadow-green-500/20 hover:bg-green-400 transition-all">
-            EXPORT DATA
-          </button>
+          <div className="hidden lg:flex items-center gap-2 px-4 py-2 bg-slate-900/50 rounded-xl border border-slate-800">
+             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Network Latency: 24ms</span>
+          </div>
         </div>
       </div>
 
       {/* Metric Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: 'Needs Reported', value: '1,248', growth: '+ 12%', icon: ClipboardList, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-          { label: 'In Progress', value: '832', growth: '+ 8%', icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-          { label: 'Completed', value: '416', growth: '+ 15%', icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-500/10' },
-          { label: 'Active Volunteers', value: '8,430', growth: '+ 20%', icon: Users, color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
+          { label: 'Needs Reported', value: data.stats.needsReported.value, growth: data.stats.needsReported.growth, icon: ClipboardList, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+          { label: 'In Progress', value: data.stats.inProgress.value, growth: data.stats.inProgress.growth, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+          { label: 'Completed', value: data.stats.completed.value, growth: data.stats.completed.growth, icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-500/10' },
+          { label: 'Active Volunteers', value: data.stats.activeVolunteers.value, growth: data.stats.activeVolunteers.growth, icon: Users, color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
         ].map((stat, i) => (
           <motion.div 
             key={i} 
@@ -482,7 +583,7 @@ const DashboardPage = () => {
           </div>
           <div className="h-[350px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={ANALYTICS_DATA}>
+              <AreaChart data={data.analyticsData}>
                 <defs>
                   <linearGradient id="colorNeeds" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
@@ -522,14 +623,14 @@ const DashboardPage = () => {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie 
-                  data={PIE_DATA} 
+                  data={data.pieData} 
                   innerRadius={70} 
                   outerRadius={100} 
                   paddingAngle={8} 
                   dataKey="value"
                   stroke="none"
                 >
-                  {PIE_DATA.map((entry, index) => (
+                  {data.pieData.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
@@ -542,7 +643,7 @@ const DashboardPage = () => {
             </div>
           </div>
           <div className="mt-auto grid grid-cols-2 gap-3 pt-6 border-t border-slate-800/50">
-            {PIE_DATA.map((item, i) => (
+            {data.pieData.map((item: any, i: number) => (
               <div key={i} className="flex items-center gap-2.5">
                 <span className="w-3 h-3 rounded-md shadow-lg" style={{ backgroundColor: item.color }}></span>
                 <span className="text-[10px] font-black text-slate-400 capitalize tracking-wide">{item.name}</span>
@@ -560,11 +661,7 @@ const DashboardPage = () => {
             <button className="text-[10px] font-black text-green-500 uppercase tracking-widest hover:underline">View All &rarr;</button>
           </h3>
           <div className="space-y-5">
-            {[
-              { text: 'Food distribution drive finalized in Panchavati', status: 'Completed', color: 'text-green-500 bg-green-500/10 border-green-500/20' },
-              { text: 'Medical camp mobilization initiated in Indra Nagar', status: 'In Transit', color: 'text-blue-500 bg-blue-500/10 border-blue-500/20' },
-              { text: 'Critical clothing shortage identified in Dwarka', status: 'New Task', color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' },
-            ].map((activity, i) => (
+            {data.recentActivities.map((activity: any, i: number) => (
               <div key={i} className="flex items-start gap-4 p-4 rounded-2xl bg-black/30 border border-slate-800 group hover:border-slate-700 transition-all">
                 <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-green-500 shrink-0 border border-slate-700 group-hover:scale-110 transition-transform">
                    <Zap size={18} />
@@ -587,10 +684,7 @@ const DashboardPage = () => {
         <div className="bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-800 shadow-xl">
           <h3 className="font-display font-bold text-xl text-white mb-8">Priority Pipeline</h3>
           <div className="space-y-5">
-            {[
-              { title: 'Mega Food Drive', loc: 'Panchavati Hub', time: 'Tomorrow, 9:00 AM', avatar: 'https://i.prava.tar.cc/150?u=a', color: 'rose' },
-              { title: 'Vitals Health Camp', loc: 'Sector 4, Indra Nagar', time: '25 May, 10:00 AM', avatar: 'https://i.pravatar.cc/150?u=b', color: 'blue' },
-            ].map((task, i) => (
+            {data.priorityPipeline.map((task: any, i: number) => (
               <div key={i} className="flex items-center gap-5 p-4 rounded-2xl border border-slate-800 hover:bg-slate-800/10 transition-all">
                 <div className="relative group/task">
                    <img src={task.avatar} className="w-12 h-12 rounded-2xl object-cover grayscale group-hover/task:grayscale-0 transition-all" />
@@ -614,6 +708,566 @@ const DashboardPage = () => {
           </div>
         </div>
       </div>
+
+      {/* System Command Log */}
+      <div className="bg-slate-900/40 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8 opacity-[0.02] -z-10">
+           <LayoutDashboard size={120} />
+        </div>
+        <div className="flex items-center justify-between mb-8">
+           <div>
+              <h3 className="font-display font-bold text-xl text-white">System Command Log</h3>
+              <p className="text-slate-500 text-xs font-medium uppercase tracking-widest">Real-time terminal event feed</p>
+           </div>
+           <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+              <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Awaiting Feed...</span>
+           </div>
+        </div>
+        <div className="grid grid-cols-1 gap-3 font-mono">
+           {data.systemLogs?.map((log: any) => (
+             <div key={log.id} className="flex items-start gap-4 p-4 rounded-2xl bg-black/40 border border-slate-800/50 group hover:border-slate-700 transition-all">
+                <span className="text-[10px] font-black text-slate-500 shrink-0 mt-1">{log.time}</span>
+                <div className="flex-1">
+                   <div className="flex items-center gap-3 mb-1">
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${
+                        log.type === 'warning' ? 'text-amber-500 border-amber-500/20 bg-amber-500/10' :
+                        log.type === 'success' ? 'text-green-500 border-green-500/20 bg-green-500/10' :
+                        'text-blue-500 border-blue-500/20 bg-blue-500/10'
+                      }`}>
+                        {log.event}
+                      </span>
+                   </div>
+                   <p className="text-xs text-slate-300 font-medium group-hover:text-white transition-colors">{log.detail}</p>
+                </div>
+             </div>
+           ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AnalyticsPage = () => {
+  const [data, setData] = React.useState<any>(null);
+  const [reports, setReports] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    Promise.all([
+      fetch(`${API_BASE}/analytics`).then(res => res.json()),
+      fetch(`${API_BASE}/all-reports`).then(res => res.json())
+    ]).then(([analyticsJson, reportsJson]) => {
+      if (analyticsJson.success) setData(analyticsJson.data);
+      if (reportsJson.success) setReports(reportsJson.data);
+      setLoading(false);
+    }).catch(err => {
+      console.error('Failed to fetch analytics', err);
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-full">
+      <div className="w-12 h-12 border-4 border-green-500/20 border-t-green-500 rounded-full animate-spin"></div>
+    </div>
+  );
+
+  if (!data) return (
+    <div className="flex flex-col items-center justify-center h-full text-slate-500">
+      <AlertTriangle size={48} className="mb-4 opacity-20" />
+      <p className="text-xl font-display font-bold">Analytics Data Unavailable</p>
+    </div>
+  );
+
+  return (
+    <div className="p-8 space-y-12 pb-32">
+      <div className="flex items-end justify-between">
+        <div>
+          <h2 className="text-4xl font-display font-black text-white uppercase tracking-tighter italic">Intelligence Analytics</h2>
+          <p className="text-slate-500 font-medium">Deep-dive into community impact and resource optimization metrics.</p>
+        </div>
+        <div className="flex gap-4">
+           <button className="bg-slate-900 border border-slate-800 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-slate-600 transition-all">
+             Generate PDF
+           </button>
+           <button className="bg-green-500 text-black px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-green-500/20">
+             Live Sync
+           </button>
+        </div>
+      </div>
+
+      {/* AI Insights Section */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {data.aiInsights.map((insight: any, i: number) => (
+          <div key={i} className="bg-slate-900/60 p-6 rounded-3xl border border-slate-800 relative overflow-hidden group">
+            <div className={`absolute top-0 right-0 w-24 h-24 blur-[60px] opacity-20 -z-10 ${
+              insight.type === 'warning' ? 'bg-rose-500' : insight.type === 'success' ? 'bg-green-500' : 'bg-blue-500'
+            }`}></div>
+            <div className="flex items-center gap-3 mb-4">
+              {insight.type === 'warning' ? <AlertTriangle className="text-rose-500" size={18} /> : 
+               insight.type === 'success' ? <CheckCircle2 className="text-green-500" size={18} /> : 
+               <Info className="text-blue-500" size={18} />}
+              <h4 className="text-sm font-black text-white uppercase tracking-widest">{insight.title}</h4>
+            </div>
+            <p className="text-xs text-slate-400 leading-relaxed font-medium">{insight.content}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {data.summaryStats.map((stat: any, i: number) => (
+          <motion.div 
+            key={i}
+            whileHover={{ y: -5 }}
+            className="bg-slate-900/40 p-6 rounded-[2rem] border border-slate-800 shadow-xl"
+          >
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{stat.label}</p>
+            <div className="flex items-end justify-between">
+              <p className="text-3xl font-display font-bold text-white">{stat.value}</p>
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border border-current bg-current/10 ${stat.color}`}>
+                {stat.trend}
+              </span>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Flow Chart: Response Lifecycle */}
+      <motion.div 
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        className="bg-slate-900/40 backdrop-blur-md p-10 rounded-[3rem] border border-slate-800 shadow-2xl relative overflow-hidden"
+      >
+        <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/5 blur-[100px] -z-10"></div>
+        <h3 className="font-display font-bold text-2xl text-white mb-12 text-center">System Response Lifecycle</h3>
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 max-w-5xl mx-auto relative">
+           {[
+             { label: 'Report', icon: FileText, color: 'text-blue-400', bg: 'bg-blue-400/10' },
+             { label: 'Analysis', icon: LayoutDashboard, color: 'text-purple-400', bg: 'bg-purple-400/10' },
+             { label: 'Prioritize', icon: Zap, color: 'text-amber-400', bg: 'bg-amber-400/10' },
+             { label: 'Match', icon: Users, color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
+             { label: 'Resolve', icon: CheckCircle2, color: 'text-rose-400', bg: 'bg-rose-400/10' },
+           ].map((step, i, arr) => (
+             <React.Fragment key={i}>
+                <motion.div 
+                  whileHover={{ scale: 1.1 }}
+                  className="flex flex-col items-center gap-4 relative z-10"
+                >
+                   <div className={`w-20 h-20 rounded-3xl ${step.bg} ${step.color} flex items-center justify-center border border-current shadow-[0_0_30px_rgba(0,0,0,0.3)] group transition-all duration-500 cursor-pointer`}>
+                      <step.icon size={32} className="group-hover:rotate-12 transition-transform" />
+                   </div>
+                   <span className="text-[10px] font-black text-white uppercase tracking-[0.3em] font-display">{step.label}</span>
+                </motion.div>
+                {i < arr.length - 1 && (
+                  <div className="hidden md:block h-[2px] flex-1 bg-gradient-to-r from-slate-800 via-slate-600 to-slate-800 relative">
+                     <motion.div 
+                       animate={{ left: ['0%', '100%'] }}
+                       transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                       className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-current rounded-full blur-[4px] opacity-20"
+                     />
+                  </div>
+                )}
+             </React.Fragment>
+           ))}
+        </div>
+      </motion.div>
+
+      {/* Network Data Architecture Flow */}
+      <div className="bg-slate-900/40 backdrop-blur-xl p-10 rounded-[3rem] border border-slate-800 shadow-2xl relative overflow-hidden">
+        <h3 className="font-display font-bold text-2xl text-white mb-12 text-center">Network Data Architecture</h3>
+        <div className="relative flex items-center justify-center min-h-[300px]">
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-20 relative z-10 w-full max-w-4xl">
+              {/* Layer 1: Sources */}
+              <div className="flex flex-col justify-center space-y-6">
+                 {['IoT Hubs', 'Web App', 'Social Feeds'].map((src, i) => (
+                   <motion.div 
+                     key={i} 
+                     whileHover={{ x: 10, scale: 1.05 }}
+                     className="px-6 py-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest text-center shadow-lg"
+                   >
+                     {src}
+                   </motion.div>
+                 ))}
+              </div>
+
+              {/* Layer 2: Core AI Engine */}
+              <div className="flex items-center justify-center">
+                 <motion.div 
+                   animate={{ 
+                     boxShadow: ['0 0 20px rgba(34,197,94,0.1)', '0 0 50px rgba(34,197,94,0.3)', '0 0 20px rgba(34,197,94,0.1)']
+                   }}
+                   transition={{ duration: 3, repeat: Infinity }}
+                   className="w-44 h-44 rounded-full bg-green-500/10 border-2 border-green-500 flex flex-col items-center justify-center text-center p-4 relative group cursor-help"
+                 >
+                    <div className="absolute inset-0 rounded-full border border-green-500/30 animate-ping"></div>
+                    <Zap className="text-green-500 mb-2" size={40} />
+                    <span className="text-[10px] font-black text-white uppercase tracking-widest leading-tight">AI Neural<br/>Match Engine</span>
+                 </motion.div>
+              </div>
+
+              {/* Layer 3: Distribution */}
+              <div className="flex flex-col justify-center space-y-6">
+                 {['Regional NGOs', 'Volunteers', 'Dashboards'].map((dst, i) => (
+                   <motion.div 
+                     key={i} 
+                     whileHover={{ x: -10, scale: 1.05 }}
+                     className="px-6 py-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest text-center shadow-lg"
+                   >
+                     {dst}
+                   </motion.div>
+                 ))}
+              </div>
+           </div>
+
+           {/* Background Decorative Lines (Simplified for CSS) */}
+           <div className="absolute inset-0 flex items-center justify-center -z-10 opacity-20">
+              <div className="w-full h-[2px] bg-gradient-to-r from-blue-500 via-green-500 to-emerald-500"></div>
+           </div>
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-8">
+        {/* Trend Chart */}
+        <div className="bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-800 shadow-xl">
+           <h3 className="font-display font-bold text-xl text-white mb-8">System Resource Trends</h3>
+           <div className="h-[350px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={data.dailyTrends}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <RechartsTooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px' }} />
+                  <Line type="monotone" dataKey="needs" stroke="#3b82f6" strokeWidth={3} dot={{ fill: '#3b82f6', r: 4 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="matched" stroke="#22c55e" strokeWidth={3} dot={{ fill: '#22c55e', r: 4 }} />
+                  <Line type="monotone" dataKey="volunteers" stroke="#f59e0b" strokeWidth={3} dot={{ fill: '#f59e0b', r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+           </div>
+        </div>
+
+        {/* Dual Pie Charts */}
+        <div className="bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-800 shadow-xl">
+           <div className="grid grid-cols-2 gap-4 h-full">
+              <div className="flex flex-col">
+                 <h3 className="font-display font-bold text-xs text-slate-500 uppercase tracking-widest mb-6">Need Types</h3>
+                 <div className="flex-1 min-h-[250px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={data.categoryDistribution} innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
+                          {data.categoryDistribution.map((entry: any, index: number) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <RechartsTooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                 </div>
+              </div>
+              <div className="flex flex-col">
+                 <h3 className="font-display font-bold text-xs text-slate-500 uppercase tracking-widest mb-6">Skill Pool</h3>
+                 <div className="flex-1 min-h-[250px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={data.skillDistribution} innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
+                          {data.skillDistribution.map((entry: any, index: number) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <RechartsTooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                 </div>
+              </div>
+           </div>
+        </div>
+      </div>
+
+      {/* Reports Table Section */}
+      <div className="bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-800 shadow-xl">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h3 className="font-display font-bold text-xl text-white">Recent Submissions</h3>
+            <p className="text-slate-500 text-xs font-medium">All reports submitted by the community in real-time.</p>
+          </div>
+          <div className="flex gap-2">
+            <span className="text-[10px] font-black px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/20 rounded-full">LIVE FEED</span>
+          </div>
+        </div>
+        <div className="overflow-x-auto no-scrollbar">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-slate-800">
+                <th className="pb-4 text-[10px] font-black text-slate-500 uppercase tracking-widest px-4">Title</th>
+                <th className="pb-4 text-[10px] font-black text-slate-500 uppercase tracking-widest px-4">Location</th>
+                <th className="pb-4 text-[10px] font-black text-slate-500 uppercase tracking-widest px-4">Urgency</th>
+                <th className="pb-4 text-[10px] font-black text-slate-500 uppercase tracking-widest px-4">Submitted By</th>
+                <th className="pb-4 text-[10px] font-black text-slate-500 uppercase tracking-widest px-4">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reports.map((report: any, i: number) => (
+                <tr key={report.id} className="border-b border-slate-800/50 group hover:bg-slate-800/20 transition-colors">
+                  <td className="py-4 px-4">
+                    <p className="text-sm font-bold text-white group-hover:text-green-500 transition-colors">{report.title}</p>
+                    <p className="text-[10px] text-slate-500 font-medium">{report.type}</p>
+                  </td>
+                  <td className="py-4 px-4 text-xs font-medium text-slate-400 italic">
+                    {report.location}
+                  </td>
+                  <td className="py-4 px-4">
+                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${
+                      report.urgency === 'Critical' || report.urgency === 'High' ? 'text-rose-500 border-rose-500/20 bg-rose-500/10' :
+                      report.urgency === 'Medium' ? 'text-amber-500 border-amber-500/20 bg-amber-500/10' :
+                      'text-green-500 border-green-500/20 bg-green-500/10'
+                    }`}>
+                      {report.urgency}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4 text-xs font-bold text-slate-300">
+                    {report.submittedBy}
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="flex items-center gap-2">
+                       <span className={`w-1.5 h-1.5 rounded-full ${
+                         report.status === 'open' ? 'bg-amber-500 animate-pulse' :
+                         report.status === 'in-progress' ? 'bg-blue-500' : 'bg-green-500'
+                       }`}></span>
+                       <span className="text-[10px] font-black uppercase text-slate-500">{report.status}</span>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {/* Growth and Regional Distribution Section */}
+      <div className="grid lg:grid-cols-3 gap-8">
+         {/* Monthly Growth */}
+         <div className="lg:col-span-2 bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-800 shadow-xl">
+            <h3 className="font-display font-bold text-xl text-white mb-8">Growth Trajectory</h3>
+            <div className="h-[250px] w-full">
+               <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={data.monthlyGrowth}>
+                    <defs>
+                      <linearGradient id="colorImp" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.1}/>
+                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                    <RechartsTooltip />
+                    <Area type="monotone" dataKey="impact" stroke="#22c55e" fillOpacity={1} fill="url(#colorImp)" strokeWidth={3} />
+                  </AreaChart>
+               </ResponsiveContainer>
+            </div>
+         </div>
+
+         {/* Regional Share */}
+         <div className="bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-800 shadow-xl">
+            <h3 className="font-display font-bold text-xl text-white mb-8">Regional Coverage</h3>
+            <div className="space-y-6">
+               {data.regionalDistribution.map((reg: any, i: number) => (
+                 <div key={i} className="space-y-2">
+                    <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
+                       <span className="text-slate-400">{reg.region} India</span>
+                       <span className="text-white">{reg.value}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                       <motion.div 
+                         initial={{ width: 0 }}
+                         animate={{ width: `${reg.value}%` }}
+                         transition={{ duration: 1, delay: i * 0.1 }}
+                         className="h-full bg-green-500 rounded-full"
+                       />
+                    </div>
+                 </div>
+               ))}
+        </div>
+      </div>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-8">
+        {/* Impact Velocity Bar Chart */}
+        <div className="bg-slate-900/40 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl">
+           <h3 className="font-display font-bold text-xl text-white mb-8">Impact Velocity</h3>
+           <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data.impactVelocity}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <RechartsTooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px' }} />
+                  <Bar dataKey="score" fill="#3b82f6" radius={[6, 6, 0, 0]} barSize={30} />
+                  <Bar dataKey="volunteers" fill="#22c55e" radius={[6, 6, 0, 0]} barSize={30} />
+                </BarChart>
+              </ResponsiveContainer>
+           </div>
+        </div>
+
+        {/* Resource Allocation Horizontal Bars */}
+        <div className="bg-slate-900/40 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl">
+           <h3 className="font-display font-bold text-xl text-white mb-8">Resource Optimization</h3>
+           <div className="space-y-8">
+              {data.resourceAllocation.map((res: any, i: number) => (
+                <div key={i} className="space-y-3">
+                   <div className="flex justify-between items-end">
+                      <span className="text-sm font-black text-white uppercase tracking-widest font-display">{res.category}</span>
+                      <span className="text-xs font-bold text-slate-500">{res.used}% Allocated</span>
+                   </div>
+                   <div className="h-3 w-full bg-slate-800/50 rounded-full overflow-hidden border border-slate-700/50 p-0.5">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        whileInView={{ width: `${res.used}%` }}
+                        transition={{ duration: 1.5, delay: i * 0.1, ease: "circOut" }}
+                        className={`h-full rounded-full bg-gradient-to-r ${
+                          res.used > 80 ? 'from-rose-500 to-rose-400' : 
+                          res.used > 50 ? 'from-amber-500 to-amber-400' : 
+                          'from-emerald-500 to-emerald-400'
+                        } shadow-[0_0_15px_rgba(0,0,0,0.2)]`}
+                      />
+                   </div>
+                </div>
+              ))}
+           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SettingsPage = () => {
+  const [settings, setSettings] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [saving, setSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    fetch(`${API_BASE}/settings`)
+      .then(res => res.json())
+      .then(json => {
+        if (json.success) setSettings(json.data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch settings', err);
+        setLoading(false);
+      });
+  }, []);
+
+  const updateSetting = async (key: string, value: any) => {
+    const updated = { ...settings, [key]: value };
+    setSettings(updated);
+    setSaving(true);
+    try {
+      await fetch(`${API_BASE}/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [key]: value })
+      });
+    } catch (err) {
+      console.error('Failed to update settings', err);
+    }
+    setSaving(false);
+  };
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-full">
+      <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+    </div>
+  );
+
+  if (!settings) return null;
+
+  return (
+    <div className="p-8 max-w-4xl space-y-10 pb-32">
+       <div className="flex items-end justify-between">
+          <div>
+            <h2 className="text-4xl font-display font-black text-white uppercase tracking-tighter italic">System Configurations</h2>
+            <p className="text-slate-500 font-medium">Manage platform protocols and administrative preferences.</p>
+          </div>
+          {saving && <span className="text-[10px] font-black text-green-500 animate-pulse uppercase tracking-widest">Saving Changes...</span>}
+       </div>
+
+       <div className="grid gap-6">
+          <div className="bg-slate-900/40 border border-slate-800 rounded-[2rem] p-8 space-y-8">
+             <div className="flex items-center justify-between">
+                <div>
+                   <h3 className="text-lg font-bold text-white">Global Notifications</h3>
+                   <p className="text-xs text-slate-500">Enable real-time push alerts for high-priority needs.</p>
+                </div>
+                <button 
+                  onClick={() => updateSetting('notifications', !settings.notifications)}
+                  className={`w-14 h-8 rounded-full relative transition-all duration-300 ${settings.notifications ? 'bg-green-500' : 'bg-slate-700'}`}
+                >
+                  <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 ${settings.notifications ? 'left-7' : 'left-1'}`}></div>
+                </button>
+             </div>
+             
+             <div className="h-px bg-slate-800"></div>
+
+             <div className="flex items-center justify-between">
+                <div>
+                   <h3 className="text-lg font-bold text-white">AI Auto-Matching</h3>
+                   <p className="text-xs text-slate-500">Allow system to automatically match volunteers based on skill scores.</p>
+                </div>
+                <button 
+                  onClick={() => updateSetting('autoMatching', !settings.autoMatching)}
+                  className={`w-14 h-8 rounded-full relative transition-all duration-300 ${settings.autoMatching ? 'bg-blue-500' : 'bg-slate-700'}`}
+                >
+                  <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 ${settings.autoMatching ? 'left-7' : 'left-1'}`}></div>
+                </button>
+             </div>
+
+             <div className="h-px bg-slate-800"></div>
+
+             <div className="grid grid-cols-2 gap-8">
+                <div>
+                   <h3 className="text-lg font-bold text-white mb-2">Privacy Tier</h3>
+                   <select 
+                     value={settings.privacyMode}
+                     onChange={(e) => updateSetting('privacyMode', e.target.value)}
+                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:border-green-500 outline-none"
+                   >
+                     <option>Standard</option>
+                     <option>High</option>
+                     <option>Paranoid</option>
+                   </select>
+                </div>
+                <div>
+                   <h3 className="text-lg font-bold text-white mb-2">Interface Theme</h3>
+                   <div className="flex gap-2">
+                      {['Dark', 'Light', 'Cyber'].map(t => (
+                        <button 
+                          key={t}
+                          onClick={() => updateSetting('theme', t)}
+                          className={`flex-1 py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${
+                            settings.theme === t ? 'bg-white text-black border-white' : 'border-slate-800 text-slate-500 hover:border-slate-600'
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                   </div>
+                </div>
+             </div>
+          </div>
+
+          <div className="bg-slate-900/40 border border-slate-800 rounded-[2rem] p-8">
+             <h3 className="text-lg font-bold text-white mb-6">Security & Keys</h3>
+             <div className="space-y-4">
+                {settings.apiKeys && Object.entries(settings.apiKeys).map(([name, key]: any) => (
+                  <div key={name} className="flex items-center justify-between p-4 bg-black/40 border border-slate-800 rounded-2xl">
+                     <span className="text-xs font-black text-slate-500 uppercase tracking-widest">{name} Access Token</span>
+                     <code className="text-xs text-green-500">{key}</code>
+                  </div>
+                ))}
+             </div>
+          </div>
+       </div>
     </div>
   );
 };
@@ -1106,6 +1760,14 @@ export default function App() {
   });
   const [reportMessage, setReportMessage] = useState('');
 
+  const [volunteerForm, setVolunteerForm] = useState({
+    name: '',
+    location: '',
+    skills: '',
+    hours: 0
+  });
+  const [volunteerMessage, setVolunteerMessage] = useState('');
+
   const handleLogin = (role: UserRole) => {
     setUserRole(role);
     setActiveTab(requestAfterLoginTab || 'dashboard');
@@ -1116,18 +1778,37 @@ export default function App() {
     setActiveTab('home');
   };
 
+  const [theme, setTheme] = useState('dark');
+
   const fetchPlatformData = async () => {
     try {
-      const [needsRes, volunteersRes] = await Promise.all([
+      const [needsRes, volunteersRes, settingsRes] = await Promise.all([
         fetch(`${API_BASE}/needs`),
-        fetch(`${API_BASE}/volunteers`)
+        fetch(`${API_BASE}/volunteers`),
+        fetch(`${API_BASE}/settings`)
       ]);
       const needsJson = await needsRes.json();
       const volunteersJson = await volunteersRes.json();
+      const settingsJson = await settingsRes.json();
       if (needsJson?.data) setApiNeeds(needsJson.data);
       if (volunteersJson?.data) setApiVolunteers(volunteersJson.data);
+      if (settingsJson?.data?.theme) setTheme(settingsJson.data.theme);
     } catch (error) {
       console.error('Backend connection failed', error);
+    }
+  };
+
+  const toggleTheme = async () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    try {
+      await fetch(`${API_BASE}/settings/theme`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme: newTheme })
+      });
+      setTheme(newTheme);
+    } catch (error) {
+      console.error('Failed to change theme', error);
     }
   };
 
@@ -1143,6 +1824,18 @@ export default function App() {
       body: JSON.stringify({ volunteerId, ngoId: 1 })
     });
     await fetchPlatformData();
+  };
+
+  const deleteVolunteer = async (id: number) => {
+    if (userRole !== 'admin') return;
+    try {
+      const response = await fetch(`${API_BASE}/volunteers/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        await fetchPlatformData();
+      }
+    } catch (error) {
+      console.error('Failed to delete volunteer', error);
+    }
   };
 
   const removeTask = async (needId: number, volunteerId: number) => {
@@ -1195,6 +1888,33 @@ export default function App() {
     }
   };
 
+  const submitVolunteer = async () => {
+    setVolunteerMessage('Submitting...');
+    try {
+      const payload = {
+        ...volunteerForm,
+        skills: volunteerForm.skills.split(',').map(s => s.trim()).filter(Boolean),
+        available: true,
+        verified: true
+      };
+      const response = await fetch(`${API_BASE}/volunteers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setVolunteerMessage(result?.message || 'Failed to register volunteer');
+        return;
+      }
+      setVolunteerMessage('Volunteer registered successfully.');
+      setVolunteerForm({ name: '', location: '', skills: '', hours: 0 });
+      await fetchPlatformData();
+    } catch (error) {
+      setVolunteerMessage('Backend unavailable. Please start backend server.');
+    }
+  };
+
   return (
     <div className="font-sans antialiased text-slate-100 selection:bg-green-500 selection:text-black min-h-screen">
       <AnimatePresence mode="wait">
@@ -1229,9 +1949,10 @@ export default function App() {
           >
             <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userRole={userRole} onLogout={handleLogout} />
             <div className="flex-1 flex flex-col h-screen overflow-hidden">
-              <Header userRole={userRole} />
+              <Header userRole={userRole} setActiveTab={setActiveTab} theme={theme} toggleTheme={toggleTheme} />
               <main className="flex-1 overflow-y-auto no-scrollbar scroll-smooth">
                 {activeTab === 'dashboard' && <DashboardPage />}
+                {activeTab === 'notifications' && <NotificationsPage />}
                 {activeTab === 'ngos' && <NgosPage userRole={userRole} />}
                 {activeTab === 'needs' && (
                   <div className="p-8 space-y-8 pb-32">
@@ -1241,7 +1962,10 @@ export default function App() {
                           <p className="text-slate-500 font-medium">Prioritized by real-time urgency and proximity signatures.</p>
                         </div>
                         {userRole === 'admin' && (
-                          <button className="bg-green-500 text-black px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl shadow-green-500/20">
+                          <button 
+                            onClick={() => setActiveTab('submit-report')}
+                            className="bg-green-500 text-black px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl shadow-green-500/20"
+                          >
                              + Register New Need
                           </button>
                         )}
@@ -1316,6 +2040,8 @@ export default function App() {
                      </AnimatePresence>
                   </div>
                 )}
+                {activeTab === 'analytics' && <AnalyticsPage />}
+                {activeTab === 'settings' && <SettingsPage />}
                 {activeTab === 'volunteers' && (
                   <div className="p-8 space-y-8 pb-32">
                     <div className="flex items-end justify-between">
@@ -1323,9 +2049,21 @@ export default function App() {
                           <h2 className="text-4xl font-display font-black text-white uppercase tracking-tighter italic">Volunteer Pool</h2>
                           <p className="text-slate-500 font-medium">Accessing {apiVolunteers.length} verified response agents in your quadrant.</p>
                        </div>
-                       <div className="relative group">
-                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-green-500 transition-colors" size={18} />
-                          <input type="text" placeholder="Skill or UID Search..." className="bg-slate-900 border border-slate-800 rounded-xl pl-12 pr-6 py-3 text-xs font-bold focus:outline-none focus:border-green-500" />
+                       <div className="flex items-center gap-4">
+                         <div className="relative group">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-green-500 transition-colors" size={18} />
+                            <input type="text" placeholder="Skill or UID Search..." className="bg-slate-900 border border-slate-800 rounded-xl pl-12 pr-6 py-3 text-xs font-bold focus:outline-none focus:border-green-500" />
+                         </div>
+                         {userRole === 'admin' && (
+                           <>
+                             <button 
+                               onClick={() => setActiveTab('register-volunteer')}
+                               className="bg-green-500 text-black px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl shadow-green-500/20 hover:bg-green-400 transition-colors"
+                             >
+                               + Register Volunteer
+                             </button>
+                           </>
+                         )}
                        </div>
                     </div>
 
@@ -1350,7 +2088,7 @@ export default function App() {
                         <h3 className="text-xl font-display font-bold text-white border-l-4 border-blue-500 pl-4 mb-8">Skill Matrices</h3>
                         <div className="grid sm:grid-cols-2 gap-6">
                           {apiVolunteers.map(v => (
-                            <VolunteerCard key={v.id} volunteer={v} />
+                            <VolunteerCard key={v.id} volunteer={v} userRole={userRole || undefined} onDelete={() => deleteVolunteer(v.id)} />
                           ))}
                         </div>
                       </div>
@@ -1358,31 +2096,151 @@ export default function App() {
                   </div>
                 )}
                 {activeTab === 'submit-report' && (
-                  <div className="p-8 max-w-3xl">
-                    <h2 className="text-4xl font-display font-black text-white uppercase tracking-tighter mb-3">Submit Report</h2>
-                    <p className="text-slate-500 mb-8">Create a new community need report from this page. It is linked from home and dashboard navigation.</p>
-                    <div className="grid gap-4">
-                      <input value={reportForm.title} onChange={(e) => setReportForm(prev => ({ ...prev, title: e.target.value }))} placeholder="Need title" className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3" />
-                      <input value={reportForm.area} onChange={(e) => setReportForm(prev => ({ ...prev, area: e.target.value }))} placeholder="Area / location" className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3" />
-                      <div className="grid grid-cols-2 gap-4">
-                        <select value={reportForm.type} onChange={(e) => setReportForm(prev => ({ ...prev, type: e.target.value }))} className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3">
-                          <option>Food</option><option>Health</option><option>Education</option><option>Shelter</option><option>Environment</option>
-                        </select>
-                        <select value={reportForm.urgency} onChange={(e) => setReportForm(prev => ({ ...prev, urgency: e.target.value }))} className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3">
-                          <option>Low</option><option>Medium</option><option>High</option><option>Critical</option>
-                        </select>
+                  <div className="p-8 max-w-4xl mx-auto">
+                    <div className="mb-10">
+                      <h2 className="text-4xl font-display font-black text-white uppercase tracking-tighter mb-3 flex items-center gap-4">
+                        <span className="w-12 h-12 rounded-2xl bg-green-500/10 text-green-500 flex items-center justify-center border border-green-500/20"><Plus size={24} /></span>
+                        Register New Need
+                      </h2>
+                      <p className="text-slate-500 font-medium text-lg ml-16">Register a new community need to alert volunteers and NGOs in the area.</p>
+                    </div>
+
+                    <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] p-8 md:p-12 backdrop-blur-xl shadow-2xl relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-green-500 to-transparent opacity-50"></div>
+                      
+                      <div className="grid gap-8">
+                        <div className="grid md:grid-cols-2 gap-8">
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Need Title</label>
+                            <div className="relative group">
+                              <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-green-500 transition-colors" size={18} />
+                              <input value={reportForm.title} onChange={(e) => setReportForm(prev => ({ ...prev, title: e.target.value }))} placeholder="e.g., Medical Supplies Needed" className="w-full bg-black/50 border border-slate-800 focus:border-green-500 rounded-2xl pl-12 pr-4 py-4 text-sm text-white placeholder:text-slate-600 transition-all outline-none" />
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Location</label>
+                            <div className="relative group">
+                              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-green-500 transition-colors" size={18} />
+                              <input value={reportForm.area} onChange={(e) => setReportForm(prev => ({ ...prev, area: e.target.value }))} placeholder="e.g., Downtown District" className="w-full bg-black/50 border border-slate-800 focus:border-green-500 rounded-2xl pl-12 pr-4 py-4 text-sm text-white placeholder:text-slate-600 transition-all outline-none" />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid md:grid-cols-3 gap-8">
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Category</label>
+                            <div className="relative group">
+                              <Layers className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-green-500 transition-colors" size={18} />
+                              <select value={reportForm.type} onChange={(e) => setReportForm(prev => ({ ...prev, type: e.target.value }))} className="w-full bg-black/50 border border-slate-800 focus:border-green-500 rounded-2xl pl-12 pr-4 py-4 text-sm text-white transition-all outline-none appearance-none">
+                                <option>Food</option><option>Health</option><option>Education</option><option>Shelter</option><option>Environment</option>
+                              </select>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} />
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Urgency</label>
+                            <div className="relative group">
+                              <AlertTriangle className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-green-500 transition-colors" size={18} />
+                              <select value={reportForm.urgency} onChange={(e) => setReportForm(prev => ({ ...prev, urgency: e.target.value }))} className="w-full bg-black/50 border border-slate-800 focus:border-green-500 rounded-2xl pl-12 pr-4 py-4 text-sm text-white transition-all outline-none appearance-none">
+                                <option>Low</option><option>Medium</option><option>High</option><option>Critical</option>
+                              </select>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} />
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Volunteers</label>
+                            <div className="relative group">
+                              <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-green-500 transition-colors" size={18} />
+                              <input type="number" min={1} value={reportForm.volunteersNeeded} onChange={(e) => setReportForm(prev => ({ ...prev, volunteersNeeded: Number(e.target.value) || 1 }))} className="w-full bg-black/50 border border-slate-800 focus:border-green-500 rounded-2xl pl-12 pr-4 py-4 text-sm text-white transition-all outline-none" />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Description</label>
+                          <textarea value={reportForm.description} onChange={(e) => setReportForm(prev => ({ ...prev, description: e.target.value }))} rows={4} placeholder="Detailed description of the requirement..." className="w-full bg-black/50 border border-slate-800 focus:border-green-500 rounded-2xl p-4 text-sm text-white placeholder:text-slate-600 transition-all outline-none resize-none" />
+                        </div>
+
+                        <div className="flex items-center justify-between pt-6 border-t border-slate-800/50">
+                          {reportMessage ? (
+                            <p className="text-sm font-bold text-green-400 flex items-center gap-2"><CheckCircle2 size={16} /> {reportMessage}</p>
+                          ) : <div/>}
+                          <div className="flex items-center gap-4">
+                            <button onClick={() => setActiveTab('needs')} className="px-8 py-4 rounded-xl text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors">Cancel</button>
+                            <button onClick={submitReport} className="bg-green-500 text-black px-8 py-4 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl shadow-green-500/20 hover:bg-green-400 hover:scale-105 transition-all">Register Need</button>
+                          </div>
+                        </div>
                       </div>
-                      <input type="number" min={1} value={reportForm.volunteersNeeded} onChange={(e) => setReportForm(prev => ({ ...prev, volunteersNeeded: Number(e.target.value) || 1 }))} placeholder="Volunteers needed" className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3" />
-                      <textarea value={reportForm.description} onChange={(e) => setReportForm(prev => ({ ...prev, description: e.target.value }))} rows={4} placeholder="Description" className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3" />
-                      <div className="flex items-center gap-4">
-                        <button onClick={submitReport} className="bg-green-500 text-black px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest">Submit Report</button>
-                        <button onClick={() => setActiveTab('needs')} className="bg-slate-900 border border-slate-700 text-slate-200 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest">Go to Needs</button>
-                      </div>
-                      {reportMessage && <p className="text-sm text-green-400">{reportMessage}</p>}
                     </div>
                   </div>
                 )}
-                {!['dashboard', 'ngos', 'needs', 'volunteers', 'submit-report'].includes(activeTab) && (
+                {activeTab === 'register-volunteer' && (
+                  <div className="p-8 max-w-4xl mx-auto">
+                    <div className="mb-10">
+                      <h2 className="text-4xl font-display font-black text-white uppercase tracking-tighter mb-3 flex items-center gap-4">
+                        <span className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center border border-blue-500/20"><UserIcon size={24} /></span>
+                        Register Volunteer
+                      </h2>
+                      <p className="text-slate-500 font-medium text-lg ml-16">Add a new verified identity to the global response network.</p>
+                    </div>
+
+                    <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] p-8 md:p-12 backdrop-blur-xl shadow-2xl relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-50"></div>
+                      
+                      <div className="grid gap-8">
+                        <div className="grid md:grid-cols-2 gap-8">
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Full Name</label>
+                            <div className="relative group">
+                              <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors" size={18} />
+                              <input value={volunteerForm.name} onChange={(e) => setVolunteerForm(prev => ({ ...prev, name: e.target.value }))} placeholder="e.g., Sarah Connor" className="w-full bg-black/50 border border-slate-800 focus:border-blue-500 rounded-2xl pl-12 pr-4 py-4 text-sm text-white placeholder:text-slate-600 transition-all outline-none" />
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Location / Region</label>
+                            <div className="relative group">
+                              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors" size={18} />
+                              <input value={volunteerForm.location} onChange={(e) => setVolunteerForm(prev => ({ ...prev, location: e.target.value }))} placeholder="e.g., Sector 7G" className="w-full bg-black/50 border border-slate-800 focus:border-blue-500 rounded-2xl pl-12 pr-4 py-4 text-sm text-white placeholder:text-slate-600 transition-all outline-none" />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-8">
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Primary Skills (Comma separated)</label>
+                            <div className="relative group">
+                              <Star className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors" size={18} />
+                              <input value={volunteerForm.skills} onChange={(e) => setVolunteerForm(prev => ({ ...prev, skills: e.target.value }))} placeholder="e.g., Paramedic, Logistics" className="w-full bg-black/50 border border-slate-800 focus:border-blue-500 rounded-2xl pl-12 pr-4 py-4 text-sm text-white placeholder:text-slate-600 transition-all outline-none" />
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Available Hours</label>
+                            <div className="relative group">
+                              <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors" size={18} />
+                              <input type="number" min={0} value={volunteerForm.hours} onChange={(e) => setVolunteerForm(prev => ({ ...prev, hours: Number(e.target.value) || 0 }))} placeholder="0" className="w-full bg-black/50 border border-slate-800 focus:border-blue-500 rounded-2xl pl-12 pr-4 py-4 text-sm text-white transition-all outline-none" />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-6 border-t border-slate-800/50">
+                          {volunteerMessage ? (
+                            <p className="text-sm font-bold text-blue-400 flex items-center gap-2"><CheckCircle2 size={16} /> {volunteerMessage}</p>
+                          ) : <div/>}
+                          <div className="flex items-center gap-4">
+                            <button onClick={() => setActiveTab('volunteers')} className="px-8 py-4 rounded-xl text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors">Cancel</button>
+                            <button onClick={submitVolunteer} className="bg-blue-500 text-black px-8 py-4 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl shadow-blue-500/20 hover:bg-blue-400 hover:scale-105 transition-all">Verify Identity</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {!['dashboard', 'ngos', 'needs', 'volunteers', 'submit-report', 'register-volunteer', 'analytics', 'settings', 'notifications'].includes(activeTab) && (
                   <div className="flex flex-col items-center justify-center h-full text-slate-600 italic">
                     <div className="w-24 h-24 bg-slate-900/50 rounded-[2.5rem] flex items-center justify-center text-slate-800 mb-6 border border-slate-800">
                        <Zap size={40} />
