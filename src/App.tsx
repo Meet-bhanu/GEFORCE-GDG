@@ -31,7 +31,9 @@ import {
   Sun,
   User as UserIcon,
   Lock as LockIcon,
-  Trash2
+  Trash2,
+  Eye,
+  Shield
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -146,6 +148,7 @@ const Sidebar = ({ activeTab, setActiveTab, userRole, onLogout }: { activeTab: s
     { id: 'needs', icon: Layers, label: 'Needs' },
     { id: 'volunteers', icon: Users, label: 'Volunteers' },
     { id: 'submit-report', icon: FileText, label: 'Submit Report' },
+    { id: 'task-summary', icon: CheckCircle2, label: 'Task Conclusion' },
     { id: 'analytics', icon: BarChart3, label: 'Analytics' },
     { id: 'settings', icon: Settings, label: 'Settings' },
   ];
@@ -223,7 +226,18 @@ const Header = ({ userRole, setActiveTab, theme, toggleTheme }: { userRole: User
   </div>
 );
 
-const VolunteerCard = ({ volunteer, userRole, onDelete }: { volunteer: typeof VOLUNTEERS[0]; userRole?: string; onDelete?: () => void; key?: any }) => (
+const VolunteerCard = ({
+  volunteer,
+  userRole,
+  onDelete,
+  onProfile
+}: {
+  volunteer: typeof VOLUNTEERS[0];
+  userRole?: string;
+  onDelete?: () => void;
+  onProfile?: () => void;
+  key?: any;
+}) => (
   <motion.div 
     whileHover={{ y: -8, scale: 1.02 }}
     className="group bg-slate-900/50 border border-slate-800 rounded-3xl p-5 hover:border-green-500/30 transition-all duration-500"
@@ -257,13 +271,18 @@ const VolunteerCard = ({ volunteer, userRole, onDelete }: { volunteer: typeof VO
             <Trash2 size={14} />
           </button>
         )}
-        <button className="text-[10px] font-bold text-green-500 uppercase tracking-widest hover:translate-x-1 transition-transform">Profile &rarr;</button>
+        <button
+          onClick={onProfile}
+          className="text-[10px] font-bold text-green-500 uppercase tracking-widest hover:translate-x-1 transition-transform flex items-center gap-1"
+        >
+          <Eye size={12} /> Profile
+        </button>
       </div>
     </div>
   </motion.div>
 );
 
-const NeedCard = ({ need, assignedVolunteer, userRole, onAssign, onRemove }: any) => {
+const NeedCard = ({ need, assignedVolunteer, userRole, onAssign, onRemove, onDeleteNeed }: any) => {
   const colorMap = {
     Critical: 'border-rose-500 text-rose-500 bg-rose-500/10',
     High: 'border-amber-500 text-amber-500 bg-amber-500/10',
@@ -327,6 +346,14 @@ const NeedCard = ({ need, assignedVolunteer, userRole, onAssign, onRemove }: any
                 Remove
               </button>
             )}
+            {userRole === 'admin' && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDeleteNeed?.(); }}
+                className="px-4 py-2 rounded-xl bg-rose-950/30 text-rose-400 border border-rose-500/40 text-[10px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all"
+              >
+                Delete
+              </button>
+            )}
             <button className="w-10 h-10 rounded-xl bg-slate-800 hover:bg-green-500 flex items-center justify-center text-slate-400 hover:text-black border border-slate-700 hover:border-green-400 transition-all group/btn">
                <ArrowRight size={18} className="group-hover/btn:translate-x-0.5 transition-transform" />
             </button>
@@ -337,7 +364,81 @@ const NeedCard = ({ need, assignedVolunteer, userRole, onAssign, onRemove }: any
   );
 };
 
-const NgosPage = ({ userRole }: { userRole: UserRole }) => {
+const NgosPage = ({
+  userRole,
+  onDeleteVolunteer,
+  onDeleteNeed
+}: {
+  userRole: UserRole;
+  onDeleteVolunteer?: (id: number) => void;
+  onDeleteNeed?: (id: number) => void;
+}) => {
+  const [ngos, setNgos] = React.useState<any[]>([]);
+  const [selectedNgoId, setSelectedNgoId] = React.useState<number | null>(null);
+  const [selectedNgoData, setSelectedNgoData] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    fetch(`${API_BASE}/ngos`)
+      .then(res => res.json())
+      .then(json => {
+        if (json.success) {
+          setNgos(json.data || []);
+          if (json.data?.length) setSelectedNgoId(json.data[0].id);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch NGOs', err);
+      });
+  }, []);
+
+  React.useEffect(() => {
+    if (!selectedNgoId) return;
+    fetch(`${API_BASE}/ngos/${selectedNgoId}`)
+      .then(res => res.json())
+      .then(json => {
+        if (json.success) setSelectedNgoData(json.data);
+      })
+      .catch((err) => {
+        console.error('Failed to fetch NGO details', err);
+      });
+  }, [selectedNgoId]);
+
+  const ngoStateUrgencyMap = React.useMemo(() => {
+    const urgencyRank: Record<string, number> = { high: 3, medium: 2, low: 1 };
+    const map: Record<string, string> = {};
+
+    NGO_DATA.forEach((ngo) => {
+      const current = map[ngo.state];
+      if (!current || urgencyRank[ngo.urgency] > urgencyRank[current]) {
+        map[ngo.state] = ngo.urgency;
+      }
+    });
+
+    return map;
+  }, []);
+
+  const geographyStyle = React.useMemo(() => ({
+    default: { outline: 'none' as const },
+    hover: { fill: '#3b82f6', outline: 'none' as const },
+    pressed: { outline: 'none' as const }
+  }), []);
+
+  const handleDeleteVolunteer = async (volunteerId: number) => {
+    onDeleteVolunteer?.(volunteerId);
+    if (selectedNgoId) {
+      const refreshed = await fetch(`${API_BASE}/ngos/${selectedNgoId}`).then(res => res.json());
+      if (refreshed.success) setSelectedNgoData(refreshed.data);
+    }
+  };
+
+  const handleDeleteNeed = async (needId: number) => {
+    onDeleteNeed?.(needId);
+    if (selectedNgoId) {
+      const refreshed = await fetch(`${API_BASE}/ngos/${selectedNgoId}`).then(res => res.json());
+      if (refreshed.success) setSelectedNgoData(refreshed.data);
+    }
+  };
+
   return (
     <div className="p-8 space-y-8 pb-32 h-full flex flex-col">
        <div className="flex items-end justify-between">
@@ -376,13 +477,14 @@ const NgosPage = ({ userRole }: { userRole: UserRole }) => {
               {({ geographies }) =>
                 geographies.map((geo) => {
                   const stateName = geo.properties.NAME_1;
-                  const ngosInState = NGO_DATA.filter(n => stateName && stateName.includes(n.state));
-                  const hasNgo = ngosInState.length > 0;
+                  const matchedState = Object.keys(ngoStateUrgencyMap).find((state) => stateName && stateName.includes(state));
+                  const urgency = matchedState ? ngoStateUrgencyMap[matchedState] : null;
+                  const hasNgo = Boolean(urgency);
                   
                   let fillColor = "#1e293b"; // default slate-800
                   if (userRole === 'admin') {
-                     if (ngosInState.some(n => n.urgency === 'high')) fillColor = "#ef4444"; // rose-500
-                     else if (ngosInState.some(n => n.urgency === 'medium')) fillColor = "#f59e0b"; // amber-500
+                     if (urgency === 'high') fillColor = "#ef4444"; // rose-500
+                     else if (urgency === 'medium') fillColor = "#f59e0b"; // amber-500
                      else if (hasNgo) fillColor = "#22c55e"; // green-500
                   } else {
                      if (hasNgo) fillColor = "#22c55e"; // just green if available
@@ -395,11 +497,7 @@ const NgosPage = ({ userRole }: { userRole: UserRole }) => {
                       fill={fillColor}
                       stroke="#0f172a"
                       strokeWidth={1}
-                      style={{
-                        default: { outline: "none", transition: "all 250ms" },
-                        hover: { fill: "#3b82f6", outline: "none", transition: "all 250ms" },
-                        pressed: { outline: "none" },
-                      }}
+                      style={geographyStyle}
                     />
                   );
                 })
@@ -415,6 +513,64 @@ const NgosPage = ({ userRole }: { userRole: UserRole }) => {
             ))}
           </ComposableMap>
        </div>
+       {userRole === 'admin' && (
+         <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] p-8 shadow-xl">
+           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+             <h3 className="text-2xl font-display font-black text-white uppercase tracking-tight">NGO Resource Controls</h3>
+             <select
+               value={selectedNgoId || ''}
+               onChange={(e) => setSelectedNgoId(Number(e.target.value))}
+               className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:border-green-500 outline-none"
+             >
+               {ngos.map((ngo) => (
+                 <option key={ngo.id} value={ngo.id}>{ngo.name}</option>
+               ))}
+             </select>
+           </div>
+
+           <div className="grid lg:grid-cols-2 gap-6">
+             <div className="rounded-2xl border border-slate-800 bg-black/30 p-5">
+               <h4 className="text-lg font-bold text-white mb-4">Assigned Volunteers</h4>
+               <div className="space-y-3">
+                 {selectedNgoData?.volunteerTeam?.length ? selectedNgoData.volunteerTeam.map((volunteer: any) => (
+                   <div key={volunteer.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-800 bg-slate-900/40">
+                     <div>
+                       <p className="text-sm font-bold text-white">{volunteer.name}</p>
+                       <p className="text-xs text-slate-500">{volunteer.location}</p>
+                     </div>
+                     <button
+                       onClick={() => handleDeleteVolunteer(volunteer.id)}
+                       className="px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/30 text-[10px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all"
+                     >
+                       Delete
+                     </button>
+                   </div>
+                 )) : <p className="text-xs text-slate-500">No assigned volunteers for this NGO.</p>}
+               </div>
+             </div>
+
+             <div className="rounded-2xl border border-slate-800 bg-black/30 p-5">
+               <h4 className="text-lg font-bold text-white mb-4">Active Needs</h4>
+               <div className="space-y-3">
+                 {selectedNgoData?.activeNeeds?.length ? selectedNgoData.activeNeeds.map((need: any) => (
+                   <div key={need.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-800 bg-slate-900/40">
+                     <div>
+                       <p className="text-sm font-bold text-white">{need.title}</p>
+                       <p className="text-xs text-slate-500">{need.area || need.location}</p>
+                     </div>
+                     <button
+                       onClick={() => handleDeleteNeed(need.id)}
+                       className="px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/30 text-[10px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all"
+                     >
+                       Delete
+                     </button>
+                   </div>
+                 )) : <p className="text-xs text-slate-500">No active needs for this NGO.</p>}
+               </div>
+             </div>
+           </div>
+         </div>
+       )}
     </div>
   );
 };
@@ -752,20 +908,84 @@ const AnalyticsPage = () => {
   const [data, setData] = React.useState<any>(null);
   const [reports, setReports] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [syncing, setSyncing] = React.useState(false);
+  const [actionMessage, setActionMessage] = React.useState('');
+  const uploadInputRef = React.useRef<HTMLInputElement | null>(null);
 
-  React.useEffect(() => {
-    Promise.all([
+  const fetchAnalyticsData = React.useCallback(async () => {
+    const [analyticsJson, reportsJson] = await Promise.all([
       fetch(`${API_BASE}/analytics`).then(res => res.json()),
       fetch(`${API_BASE}/all-reports`).then(res => res.json())
-    ]).then(([analyticsJson, reportsJson]) => {
-      if (analyticsJson.success) setData(analyticsJson.data);
-      if (reportsJson.success) setReports(reportsJson.data);
+    ]);
+    if (analyticsJson.success) setData(analyticsJson.data);
+    if (reportsJson.success) setReports(reportsJson.data);
+  }, []);
+
+  React.useEffect(() => {
+    fetchAnalyticsData().then(() => {
       setLoading(false);
-    }).catch(err => {
+    }).catch((err) => {
       console.error('Failed to fetch analytics', err);
       setLoading(false);
     });
-  }, []);
+  }, [fetchAnalyticsData]);
+
+  const handleGeneratePdf = async () => {
+    try {
+      setActionMessage('Preparing PDF export...');
+      const res = await fetch(`${API_BASE}/reports/export?format=pdf`);
+      const json = await res.json();
+      if (json.success) {
+        setActionMessage(json.message || 'PDF export ready.');
+        if (json.downloadUrl) {
+          window.open(`${API_BASE.replace('/api', '')}${json.downloadUrl}`, '_blank');
+        }
+      } else {
+        setActionMessage(json.message || 'Failed to generate PDF.');
+      }
+    } catch (error) {
+      setActionMessage('PDF export failed. Backend unavailable.');
+    }
+  };
+
+  const handleLiveSync = async () => {
+    try {
+      setSyncing(true);
+      setActionMessage('Syncing live analytics data...');
+      await fetch(`${API_BASE}/health`);
+      await fetchAnalyticsData();
+      setActionMessage('Live sync completed successfully.');
+    } catch (error) {
+      setActionMessage('Live sync failed. Please check backend.');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleUploadPdf = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      setActionMessage('Uploading PDF metadata...');
+      const response = await fetch(`${API_BASE}/uploads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ngoId: 1,
+          fileName: file.name,
+          fileType: 'pdf',
+          source: 'analytics-manual-upload'
+        })
+      });
+      const result = await response.json();
+      setActionMessage(result?.message || 'PDF upload job submitted.');
+      await fetchAnalyticsData();
+    } catch (error) {
+      setActionMessage('PDF upload failed.');
+    } finally {
+      event.target.value = '';
+    }
+  };
 
   if (loading) return (
     <div className="flex items-center justify-center h-full">
@@ -788,14 +1008,33 @@ const AnalyticsPage = () => {
           <p className="text-slate-500 font-medium">Deep-dive into community impact and resource optimization metrics.</p>
         </div>
         <div className="flex gap-4">
-           <button className="bg-slate-900 border border-slate-800 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-slate-600 transition-all">
+           <button
+             onClick={handleGeneratePdf}
+             className="bg-slate-900 border border-slate-800 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-slate-600 transition-all"
+           >
              Generate PDF
            </button>
-           <button className="bg-green-500 text-black px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-green-500/20">
+           <button
+             onClick={() => uploadInputRef.current?.click()}
+             className="bg-blue-500/10 border border-blue-500/40 text-blue-400 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 hover:text-black transition-all"
+           >
+             Upload PDF
+           </button>
+           <button
+             onClick={handleLiveSync}
+             disabled={syncing}
+             className="bg-green-500 text-black px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-green-500/20 disabled:opacity-60"
+           >
              Live Sync
            </button>
+           <input ref={uploadInputRef} type="file" accept="application/pdf" onChange={handleUploadPdf} className="hidden" />
         </div>
       </div>
+      {actionMessage && (
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 px-5 py-3 text-xs text-slate-300 font-medium">
+          {actionMessage}
+        </div>
+      )}
 
       {/* AI Insights Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1183,91 +1422,96 @@ const SettingsPage = () => {
   if (!settings) return null;
 
   return (
-    <div className="p-8 max-w-4xl space-y-10 pb-32">
-       <div className="flex items-end justify-between">
+    <div className="p-8 max-w-5xl space-y-8 pb-32">
+      <div className="bg-slate-900/40 border border-slate-800 rounded-[2rem] p-8 md:p-10 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 via-blue-500 to-violet-500"></div>
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-4xl font-display font-black text-white uppercase tracking-tighter italic">System Configurations</h2>
-            <p className="text-slate-500 font-medium">Manage platform protocols and administrative preferences.</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-2">Administration</p>
+            <h2 className="text-4xl font-display font-black text-white uppercase tracking-tighter italic">Settings Center</h2>
+            <p className="text-slate-400 font-medium mt-2">Control platform behavior, privacy, and access policies from a single place.</p>
           </div>
-          {saving && <span className="text-[10px] font-black text-green-500 animate-pulse uppercase tracking-widest">Saving Changes...</span>}
-       </div>
+          {saving && <span className="text-[10px] font-black text-emerald-400 animate-pulse uppercase tracking-widest">Syncing...</span>}
+        </div>
+      </div>
 
-       <div className="grid gap-6">
-          <div className="bg-slate-900/40 border border-slate-800 rounded-[2rem] p-8 space-y-8">
-             <div className="flex items-center justify-between">
-                <div>
-                   <h3 className="text-lg font-bold text-white">Global Notifications</h3>
-                   <p className="text-xs text-slate-500">Enable real-time push alerts for high-priority needs.</p>
-                </div>
-                <button 
-                  onClick={() => updateSetting('notifications', !settings.notifications)}
-                  className={`w-14 h-8 rounded-full relative transition-all duration-300 ${settings.notifications ? 'bg-green-500' : 'bg-slate-700'}`}
-                >
-                  <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 ${settings.notifications ? 'left-7' : 'left-1'}`}></div>
-                </button>
-             </div>
-             
-             <div className="h-px bg-slate-800"></div>
+      <div className="grid xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-2 bg-slate-900/40 border border-slate-800 rounded-[2rem] p-8 space-y-6">
+          <h3 className="text-lg font-bold text-white">Platform Controls</h3>
 
-             <div className="flex items-center justify-between">
-                <div>
-                   <h3 className="text-lg font-bold text-white">AI Auto-Matching</h3>
-                   <p className="text-xs text-slate-500">Allow system to automatically match volunteers based on skill scores.</p>
-                </div>
-                <button 
-                  onClick={() => updateSetting('autoMatching', !settings.autoMatching)}
-                  className={`w-14 h-8 rounded-full relative transition-all duration-300 ${settings.autoMatching ? 'bg-blue-500' : 'bg-slate-700'}`}
-                >
-                  <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 ${settings.autoMatching ? 'left-7' : 'left-1'}`}></div>
-                </button>
-             </div>
-
-             <div className="h-px bg-slate-800"></div>
-
-             <div className="grid grid-cols-2 gap-8">
-                <div>
-                   <h3 className="text-lg font-bold text-white mb-2">Privacy Tier</h3>
-                   <select 
-                     value={settings.privacyMode}
-                     onChange={(e) => updateSetting('privacyMode', e.target.value)}
-                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:border-green-500 outline-none"
-                   >
-                     <option>Standard</option>
-                     <option>High</option>
-                     <option>Paranoid</option>
-                   </select>
-                </div>
-                <div>
-                   <h3 className="text-lg font-bold text-white mb-2">Interface Theme</h3>
-                   <div className="flex gap-2">
-                      {['Dark', 'Light', 'Cyber'].map(t => (
-                        <button 
-                          key={t}
-                          onClick={() => updateSetting('theme', t)}
-                          className={`flex-1 py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${
-                            settings.theme === t ? 'bg-white text-black border-white' : 'border-slate-800 text-slate-500 hover:border-slate-600'
-                          }`}
-                        >
-                          {t}
-                        </button>
-                      ))}
-                   </div>
-                </div>
-             </div>
+          <div className="rounded-2xl border border-slate-800 bg-black/30 p-5 flex items-center justify-between">
+            <div>
+              <h4 className="text-white font-semibold">Global Notifications</h4>
+              <p className="text-xs text-slate-500">Push alert routing for newly raised high-priority needs.</p>
+            </div>
+            <button
+              onClick={() => updateSetting('notifications', !settings.notifications)}
+              className={`w-14 h-8 rounded-full relative transition-all duration-300 ${settings.notifications ? 'bg-green-500' : 'bg-slate-700'}`}
+            >
+              <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 ${settings.notifications ? 'left-7' : 'left-1'}`}></div>
+            </button>
           </div>
 
-          <div className="bg-slate-900/40 border border-slate-800 rounded-[2rem] p-8">
-             <h3 className="text-lg font-bold text-white mb-6">Security & Keys</h3>
-             <div className="space-y-4">
-                {settings.apiKeys && Object.entries(settings.apiKeys).map(([name, key]: any) => (
-                  <div key={name} className="flex items-center justify-between p-4 bg-black/40 border border-slate-800 rounded-2xl">
-                     <span className="text-xs font-black text-slate-500 uppercase tracking-widest">{name} Access Token</span>
-                     <code className="text-xs text-green-500">{key}</code>
-                  </div>
+          <div className="rounded-2xl border border-slate-800 bg-black/30 p-5 flex items-center justify-between">
+            <div>
+              <h4 className="text-white font-semibold">AI Auto-Matching</h4>
+              <p className="text-xs text-slate-500">Automatic volunteer matching based on skills and urgency score.</p>
+            </div>
+            <button
+              onClick={() => updateSetting('autoMatching', !settings.autoMatching)}
+              className={`w-14 h-8 rounded-full relative transition-all duration-300 ${settings.autoMatching ? 'bg-blue-500' : 'bg-slate-700'}`}
+            >
+              <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 ${settings.autoMatching ? 'left-7' : 'left-1'}`}></div>
+            </button>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-5">
+            <div className="rounded-2xl border border-slate-800 bg-black/30 p-5">
+              <h4 className="text-white font-semibold mb-2">Privacy Level</h4>
+              <select
+                value={settings.privacyMode}
+                onChange={(e) => updateSetting('privacyMode', e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:border-green-500 outline-none"
+              >
+                <option>Standard</option>
+                <option>High</option>
+                <option>Paranoid</option>
+              </select>
+            </div>
+            <div className="rounded-2xl border border-slate-800 bg-black/30 p-5">
+              <h4 className="text-white font-semibold mb-2">Interface Theme</h4>
+              <div className="flex gap-2">
+                {['Dark', 'Light', 'Cyber'].map(t => (
+                  <button
+                    key={t}
+                    onClick={() => updateSetting('theme', t)}
+                    className={`flex-1 py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${
+                      settings.theme === t ? 'bg-white text-black border-white' : 'border-slate-800 text-slate-500 hover:border-slate-600'
+                    }`}
+                  >
+                    {t}
+                  </button>
                 ))}
-             </div>
+              </div>
+            </div>
           </div>
-       </div>
+        </div>
+
+        <div className="bg-slate-900/40 border border-slate-800 rounded-[2rem] p-8 space-y-4">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-9 h-9 rounded-xl bg-violet-500/10 border border-violet-500/30 text-violet-400 flex items-center justify-center">
+              <Shield size={18} />
+            </div>
+            <h3 className="text-lg font-bold text-white">Security & Keys</h3>
+          </div>
+          {settings.apiKeys && Object.entries(settings.apiKeys).map(([name, key]: any) => (
+            <div key={name} className="p-4 bg-black/40 border border-slate-800 rounded-2xl">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{name} Access Token</p>
+              <code className="text-xs text-emerald-400 break-all">{key}</code>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
@@ -1749,6 +1993,7 @@ export default function App() {
   const [assigningTo, setAssigningTo] = useState<number | null>(null);
   const [apiNeeds, setApiNeeds] = useState<NeedRecord[]>(NEEDS);
   const [apiVolunteers, setApiVolunteers] = useState<VolunteerRecord[]>(VOLUNTEERS);
+  const [selectedVolunteer, setSelectedVolunteer] = useState<any>(null);
   const [requestAfterLoginTab, setRequestAfterLoginTab] = useState<string>('dashboard');
   const [reportForm, setReportForm] = useState({
     title: '',
@@ -1759,6 +2004,15 @@ export default function App() {
     description: ''
   });
   const [reportMessage, setReportMessage] = useState('');
+  const [summaryForm, setSummaryForm] = useState({
+    needId: 0,
+    finalStatus: 'resolved',
+    summary: '',
+    impact: '',
+    nextSteps: '',
+    closedBy: 'Admin User'
+  });
+  const [summaryMessage, setSummaryMessage] = useState('');
 
   const [volunteerForm, setVolunteerForm] = useState({
     name: '',
@@ -1767,6 +2021,12 @@ export default function App() {
     hours: 0
   });
   const [volunteerMessage, setVolunteerMessage] = useState('');
+  const [volunteerVerificationStream, setVolunteerVerificationStream] = useState<MediaStream | null>(null);
+  const [volunteerCameraError, setVolunteerCameraError] = useState('');
+  const [showCameraPermissionPopup, setShowCameraPermissionPopup] = useState(false);
+  const [cameraPermissionState, setCameraPermissionState] = useState<'idle' | 'granted' | 'denied'>('idle');
+  const [cameraDeviceLabel, setCameraDeviceLabel] = useState('');
+  const volunteerCameraRef = useRef<HTMLVideoElement | null>(null);
 
   const handleLogin = (role: UserRole) => {
     setUserRole(role);
@@ -1816,6 +2076,89 @@ export default function App() {
     fetchPlatformData();
   }, []);
 
+  React.useEffect(() => {
+    if (activeTab !== 'volunteers') {
+      setVolunteerVerificationStream((previousStream) => {
+        previousStream?.getTracks().forEach((track) => track.stop());
+        return null;
+      });
+      setShowCameraPermissionPopup(false);
+      setCameraPermissionState('idle');
+      setVolunteerCameraError('');
+      return;
+    }
+    setShowCameraPermissionPopup(true);
+    return () => {
+      setVolunteerVerificationStream((previousStream) => {
+        previousStream?.getTracks().forEach((track) => track.stop());
+        return null;
+      });
+    };
+  }, [activeTab]);
+
+  React.useEffect(() => {
+    if (!volunteerCameraRef.current) return;
+    if (!volunteerVerificationStream) {
+      volunteerCameraRef.current.srcObject = null;
+      return;
+    }
+    volunteerCameraRef.current.srcObject = volunteerVerificationStream;
+    volunteerCameraRef.current.play().catch(() => {});
+  }, [volunteerVerificationStream]);
+
+  const requestVolunteerCameraAccess = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setVolunteerCameraError('Camera is not supported in this browser.');
+      setCameraPermissionState('denied');
+      setShowCameraPermissionPopup(false);
+      return;
+    }
+    try {
+      let stream: MediaStream;
+      try {
+        // Explicit constraints to ensure an actual webcam feed is requested.
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'user',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        });
+      } catch {
+        // Fallback for systems that reject strict constraints.
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      }
+
+      const firstVideoTrack = stream.getVideoTracks()[0];
+      if (!firstVideoTrack) {
+        throw new Error('No camera track available');
+      }
+
+      setVolunteerVerificationStream(stream);
+      setCameraDeviceLabel(firstVideoTrack.label || 'Default Camera');
+      setVolunteerCameraError('');
+      setCameraPermissionState('granted');
+      setShowCameraPermissionPopup(false);
+    } catch (error) {
+      setVolunteerCameraError('Camera permission is required for volunteer verification.');
+      setCameraPermissionState('denied');
+      setCameraDeviceLabel('');
+      setShowCameraPermissionPopup(false);
+    }
+  };
+
+  const denyVolunteerCameraAccess = () => {
+    setVolunteerVerificationStream((previousStream) => {
+      previousStream?.getTracks().forEach((track) => track.stop());
+      return null;
+    });
+    setCameraPermissionState('denied');
+    setCameraDeviceLabel('');
+    setVolunteerCameraError('Verification camera access was denied.');
+    setShowCameraPermissionPopup(false);
+  };
+
   const assignTask = async (needId: number, volunteerId: number) => {
     if (userRole !== 'admin') return;
     await fetch(`${API_BASE}/needs/${needId}/assign`, {
@@ -1826,15 +2169,46 @@ export default function App() {
     await fetchPlatformData();
   };
 
+  const openVolunteerProfile = async (id: number) => {
+    try {
+      const response = await fetch(`${API_BASE}/volunteers/${id}`);
+      const result = await response.json();
+      if (result?.success && result?.data) {
+        setSelectedVolunteer(result.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch volunteer profile', error);
+    }
+  };
+
   const deleteVolunteer = async (id: number) => {
     if (userRole !== 'admin') return;
+    const previousVolunteers = apiVolunteers;
+    const previousNeeds = apiNeeds;
+
+    // Optimistic UI: remove the whole volunteer card instantly.
+    setApiVolunteers(prev => prev.filter(v => v.id !== id));
+    setApiNeeds(prev =>
+      prev.map(need => ({
+        ...need,
+        assignedVolunteerIds: (need.assignedVolunteerIds || []).filter(volunteerId => volunteerId !== id)
+      }))
+    );
+
     try {
       const response = await fetch(`${API_BASE}/volunteers/${id}`, { method: 'DELETE' });
       if (response.ok) {
+        if (selectedVolunteer?.id === id) setSelectedVolunteer(null);
         await fetchPlatformData();
+      } else {
+        // Rollback UI if backend delete fails.
+        setApiVolunteers(previousVolunteers);
+        setApiNeeds(previousNeeds);
       }
     } catch (error) {
       console.error('Failed to delete volunteer', error);
+      setApiVolunteers(previousVolunteers);
+      setApiNeeds(previousNeeds);
     }
   };
 
@@ -1842,6 +2216,18 @@ export default function App() {
     if (userRole !== 'admin') return;
     await fetch(`${API_BASE}/needs/${needId}/assign/${volunteerId}`, { method: 'DELETE' });
     await fetchPlatformData();
+  };
+
+  const deleteNeed = async (id: number) => {
+    if (userRole !== 'admin') return;
+    try {
+      const response = await fetch(`${API_BASE}/needs/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        await fetchPlatformData();
+      }
+    } catch (error) {
+      console.error('Failed to delete need', error);
+    }
   };
 
   const openReportPage = () => {
@@ -1885,6 +2271,43 @@ export default function App() {
       await fetchPlatformData();
     } catch (error) {
       setReportMessage('Backend unavailable. Please start backend server.');
+    }
+  };
+
+  const submitTaskSummary = async () => {
+    if (!summaryForm.needId) {
+      setSummaryMessage('Please select a task.');
+      return;
+    }
+    if (!summaryForm.summary.trim()) {
+      setSummaryMessage('Please write a final summary before submitting.');
+      return;
+    }
+
+    setSummaryMessage('Submitting conclusion...');
+    try {
+      const response = await fetch(`${API_BASE}/needs/${summaryForm.needId}/conclusion`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(summaryForm)
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setSummaryMessage(result?.message || 'Failed to submit conclusion.');
+        return;
+      }
+      setSummaryMessage(result?.message || 'Task conclusion submitted successfully.');
+      setSummaryForm({
+        needId: 0,
+        finalStatus: 'resolved',
+        summary: '',
+        impact: '',
+        nextSteps: '',
+        closedBy: 'Admin User'
+      });
+      await fetchPlatformData();
+    } catch (error) {
+      setSummaryMessage('Backend unavailable. Please start backend server.');
     }
   };
 
@@ -1953,7 +2376,13 @@ export default function App() {
               <main className="flex-1 overflow-y-auto no-scrollbar scroll-smooth">
                 {activeTab === 'dashboard' && <DashboardPage />}
                 {activeTab === 'notifications' && <NotificationsPage />}
-                {activeTab === 'ngos' && <NgosPage userRole={userRole} />}
+                {activeTab === 'ngos' && (
+                  <NgosPage
+                    userRole={userRole}
+                    onDeleteVolunteer={deleteVolunteer}
+                    onDeleteNeed={deleteNeed}
+                  />
+                )}
                 {activeTab === 'needs' && (
                   <div className="p-8 space-y-8 pb-32">
                      <div className="flex items-end justify-between">
@@ -1982,6 +2411,7 @@ export default function App() {
                               assignedVolunteer={volunteer}
                               onAssign={() => setAssigningTo(need.id)}
                               onRemove={() => volunteer && removeTask(need.id, volunteer.id)}
+                              onDeleteNeed={() => deleteNeed(need.id)}
                             />
                           );
                         })}
@@ -2044,6 +2474,36 @@ export default function App() {
                 {activeTab === 'settings' && <SettingsPage />}
                 {activeTab === 'volunteers' && (
                   <div className="p-8 space-y-8 pb-32">
+                    <AnimatePresence>
+                      {showCameraPermissionPopup && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-sm flex items-center justify-center p-6"
+                        >
+                          <motion.div
+                            initial={{ scale: 0.95, y: 16 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.95, y: 16 }}
+                            className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-[2rem] p-8"
+                          >
+                            <h3 className="text-2xl font-display font-black text-white mb-3">Allow Camera Verification?</h3>
+                            <p className="text-sm text-slate-400 mb-8">
+                              This page uses your camera to verify volunteers. Click allow to open webcam verification.
+                            </p>
+                            <div className="flex items-center justify-end gap-3">
+                              <button onClick={denyVolunteerCameraAccess} className="px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors">
+                                Deny
+                              </button>
+                              <button onClick={requestVolunteerCameraAccess} className="bg-green-500 text-black px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl shadow-green-500/20 hover:bg-green-400 transition-colors">
+                                Allow Camera
+                              </button>
+                            </div>
+                          </motion.div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                     <div className="flex items-end justify-between">
                        <div>
                           <h2 className="text-4xl font-display font-black text-white uppercase tracking-tighter italic">Volunteer Pool</h2>
@@ -2067,6 +2527,39 @@ export default function App() {
                        </div>
                     </div>
 
+                    <div className="bg-slate-900/40 border border-slate-800 rounded-[2rem] p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="text-sm font-black text-white uppercase tracking-widest">Volunteer Verification Camera</h3>
+                          {cameraDeviceLabel && (
+                            <p className="text-[10px] text-slate-500 mt-1">{cameraDeviceLabel}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {cameraPermissionState !== 'granted' && (
+                            <button
+                              onClick={() => setShowCameraPermissionPopup(true)}
+                              className="px-3 py-1.5 rounded-lg border border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:border-green-500 hover:text-green-400 transition-colors"
+                            >
+                              Enable Camera
+                            </button>
+                          )}
+                          <span className={`text-[10px] font-black uppercase tracking-widest ${volunteerVerificationStream ? 'text-green-400' : cameraPermissionState === 'denied' ? 'text-rose-400' : 'text-slate-500'}`}>
+                            {volunteerVerificationStream ? 'Live' : cameraPermissionState === 'denied' ? 'Denied' : 'Offline'}
+                          </span>
+                        </div>
+                      </div>
+                      {volunteerCameraError ? (
+                        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-300">
+                          {volunteerCameraError}
+                        </div>
+                      ) : (
+                        <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-black">
+                          <video ref={volunteerCameraRef} className="w-full max-h-72 object-cover" autoPlay muted playsInline />
+                        </div>
+                      )}
+                    </div>
+
                     <div className="grid lg:grid-cols-2 gap-12">
                       <div className="space-y-6">
                         <h3 className="text-xl font-display font-bold text-white border-l-4 border-green-500 pl-4 mb-8">Verified Digital Identities</h3>
@@ -2088,13 +2581,67 @@ export default function App() {
                         <h3 className="text-xl font-display font-bold text-white border-l-4 border-blue-500 pl-4 mb-8">Skill Matrices</h3>
                         <div className="grid sm:grid-cols-2 gap-6">
                           {apiVolunteers.map(v => (
-                            <VolunteerCard key={v.id} volunteer={v} userRole={userRole || undefined} onDelete={() => deleteVolunteer(v.id)} />
+                            <VolunteerCard
+                              key={v.id}
+                              volunteer={v}
+                              userRole={userRole || undefined}
+                              onDelete={() => deleteVolunteer(v.id)}
+                              onProfile={() => openVolunteerProfile(v.id)}
+                            />
                           ))}
                         </div>
                       </div>
                     </div>
                   </div>
                 )}
+                <AnimatePresence>
+                  {selectedVolunteer && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6"
+                    >
+                      <motion.div
+                        initial={{ y: 20, scale: 0.96 }}
+                        animate={{ y: 0, scale: 1 }}
+                        exit={{ y: 20, scale: 0.96 }}
+                        className="w-full max-w-xl bg-slate-900 border border-slate-800 rounded-[2rem] p-8 relative"
+                      >
+                        <button onClick={() => setSelectedVolunteer(null)} className="absolute top-5 right-5 p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white">
+                          <Plus size={18} className="rotate-45" />
+                        </button>
+                        <div className="flex items-center gap-4 mb-6">
+                          <img src={selectedVolunteer.avatar} alt={selectedVolunteer.name} className="w-16 h-16 rounded-2xl object-cover border border-slate-700" />
+                          <div>
+                            <h3 className="text-2xl font-display font-bold text-white">{selectedVolunteer.name}</h3>
+                            <p className="text-sm text-slate-400">{selectedVolunteer.location}</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 mb-6">
+                          <div className="p-4 rounded-2xl border border-slate-800 bg-black/30">
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Hours</p>
+                            <p className="text-2xl font-black text-green-400 mt-1">{selectedVolunteer.hours}</p>
+                          </div>
+                          <div className="p-4 rounded-2xl border border-slate-800 bg-black/30">
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Skills</p>
+                            <p className="text-sm text-white mt-1">{selectedVolunteer.skills.length}</p>
+                          </div>
+                        </div>
+                        <div className="p-4 rounded-2xl border border-slate-800 bg-black/30">
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Skill Tags</p>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedVolunteer.skills.map((skill) => (
+                              <span key={skill} className="px-3 py-1 rounded-full text-xs border border-green-500/30 text-green-400 bg-green-500/10">
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
                 {activeTab === 'submit-report' && (
                   <div className="p-8 max-w-4xl mx-auto">
                     <div className="mb-10">
@@ -2177,6 +2724,113 @@ export default function App() {
                     </div>
                   </div>
                 )}
+                {activeTab === 'task-summary' && (
+                  <div className="p-8 max-w-4xl mx-auto">
+                    <div className="mb-10">
+                      <h2 className="text-4xl font-display font-black text-white uppercase tracking-tighter mb-3 flex items-center gap-4">
+                        <span className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20"><CheckCircle2 size={24} /></span>
+                        Submit Task Conclusion
+                      </h2>
+                      <p className="text-slate-500 font-medium text-lg ml-16">Submit the final conclusion summary for a completed or closed task.</p>
+                    </div>
+
+                    <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] p-8 md:p-12 backdrop-blur-xl shadow-2xl relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-50"></div>
+
+                      <div className="grid gap-8">
+                        <div className="grid md:grid-cols-2 gap-8">
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Task</label>
+                            <div className="relative group">
+                              <ClipboardList className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
+                              <select
+                                value={summaryForm.needId || ''}
+                                onChange={(e) => setSummaryForm(prev => ({ ...prev, needId: Number(e.target.value) || 0 }))}
+                                className="w-full bg-black/50 border border-slate-800 focus:border-emerald-500 rounded-2xl pl-12 pr-4 py-4 text-sm text-white transition-all outline-none appearance-none"
+                              >
+                                <option value="">Choose a task</option>
+                                {apiNeeds.map((need) => (
+                                  <option key={need.id} value={need.id}>
+                                    {need.title} ({need.area || need.location || 'Unknown Area'})
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} />
+                            </div>
+                          </div>
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Final Status</label>
+                            <div className="relative group">
+                              <CheckCircle2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
+                              <select
+                                value={summaryForm.finalStatus}
+                                onChange={(e) => setSummaryForm(prev => ({ ...prev, finalStatus: e.target.value }))}
+                                className="w-full bg-black/50 border border-slate-800 focus:border-emerald-500 rounded-2xl pl-12 pr-4 py-4 text-sm text-white transition-all outline-none appearance-none"
+                              >
+                                <option value="resolved">Resolved</option>
+                                <option value="cancelled">Cancelled</option>
+                              </select>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={16} />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Final Summary</label>
+                          <textarea
+                            value={summaryForm.summary}
+                            onChange={(e) => setSummaryForm(prev => ({ ...prev, summary: e.target.value }))}
+                            rows={4}
+                            placeholder="Write the final conclusion and closure notes for this task..."
+                            className="w-full bg-black/50 border border-slate-800 focus:border-emerald-500 rounded-2xl p-4 text-sm text-white placeholder:text-slate-600 transition-all outline-none resize-none"
+                          />
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-8">
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Impact Delivered</label>
+                            <input
+                              value={summaryForm.impact}
+                              onChange={(e) => setSummaryForm(prev => ({ ...prev, impact: e.target.value }))}
+                              placeholder="e.g., 120 families supported"
+                              className="w-full bg-black/50 border border-slate-800 focus:border-emerald-500 rounded-2xl px-4 py-4 text-sm text-white placeholder:text-slate-600 transition-all outline-none"
+                            />
+                          </div>
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Closed By</label>
+                            <input
+                              value={summaryForm.closedBy}
+                              onChange={(e) => setSummaryForm(prev => ({ ...prev, closedBy: e.target.value }))}
+                              placeholder="e.g., Regional Coordinator"
+                              className="w-full bg-black/50 border border-slate-800 focus:border-emerald-500 rounded-2xl px-4 py-4 text-sm text-white placeholder:text-slate-600 transition-all outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Follow-up Notes (Optional)</label>
+                          <textarea
+                            value={summaryForm.nextSteps}
+                            onChange={(e) => setSummaryForm(prev => ({ ...prev, nextSteps: e.target.value }))}
+                            rows={3}
+                            placeholder="Any follow-up recommendations for future tasks..."
+                            className="w-full bg-black/50 border border-slate-800 focus:border-emerald-500 rounded-2xl p-4 text-sm text-white placeholder:text-slate-600 transition-all outline-none resize-none"
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between pt-6 border-t border-slate-800/50">
+                          {summaryMessage ? (
+                            <p className="text-sm font-bold text-emerald-400 flex items-center gap-2"><CheckCircle2 size={16} /> {summaryMessage}</p>
+                          ) : <div />}
+                          <div className="flex items-center gap-4">
+                            <button onClick={() => setActiveTab('needs')} className="px-8 py-4 rounded-xl text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors">Cancel</button>
+                            <button onClick={submitTaskSummary} className="bg-emerald-500 text-black px-8 py-4 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 hover:bg-emerald-400 hover:scale-105 transition-all">Submit Conclusion</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {activeTab === 'register-volunteer' && (
                   <div className="p-8 max-w-4xl mx-auto">
                     <div className="mb-10">
@@ -2240,7 +2894,7 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                {!['dashboard', 'ngos', 'needs', 'volunteers', 'submit-report', 'register-volunteer', 'analytics', 'settings', 'notifications'].includes(activeTab) && (
+                {!['dashboard', 'ngos', 'needs', 'volunteers', 'submit-report', 'task-summary', 'register-volunteer', 'analytics', 'settings', 'notifications'].includes(activeTab) && (
                   <div className="flex flex-col items-center justify-center h-full text-slate-600 italic">
                     <div className="w-24 h-24 bg-slate-900/50 rounded-[2.5rem] flex items-center justify-center text-slate-800 mb-6 border border-slate-800">
                        <Zap size={40} />

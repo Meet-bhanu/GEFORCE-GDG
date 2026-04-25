@@ -41,6 +41,10 @@ function buildUrgencyScore({ urgency, volunteersNeeded, reportsCount, affectedPo
   return Math.min(10, urgencyWeight + volunteerPressure + reportsWeight + populationWeight - 2);
 }
 
+function isNeedDone(status) {
+  return status === 'resolved' || status === 'cancelled';
+}
+
 // --- In-Memory Database (Replace with MongoDB/PostgreSQL later) ---
 let needs = [
   { id: 1, title: 'Food Distribution', area: 'Panchavati, Nashik', location: 'Panchavati, Nashik', type: 'Food', category: 'Food', ngoId: 1, source: 'field-report', skillsRequired: ['Logistics', 'Food Packaging'], assignedVolunteerIds: [2], volunteersNeeded: 8, urgency: 'High', distance: '2.4 km', image: 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?q=80&w=400', color: 'rose', description: 'Need volunteers for meal packaging and distribution.', status: 'open', reportsCount: 5, affectedPopulation: 320, datePosted: new Date().toISOString(), createdAt: new Date().toISOString() },
@@ -91,6 +95,8 @@ let users = [
   { id: 2, role: 'guest', username: 'guest' },
   { id: 3, role: 'public', username: 'public' }
 ];
+
+let taskConclusions = [];
 
 // --- Home/Dashboard Mock Data ---
 let analyticsData = [
@@ -336,6 +342,59 @@ app.get('/api/reports', (req, res) => {
   res.json({ success: true, count: needs.length, data: needs });
 });
 
+app.post('/api/needs/:id/conclusion', (req, res) => {
+  const needId = Number(req.params.id);
+  const need = needs.find(item => item.id === needId);
+  if (!need) {
+    return res.status(404).json({ success: false, message: 'Need not found' });
+  }
+
+  const { summary, finalStatus, impact, nextSteps, closedBy } = req.body || {};
+  if (!summary || !String(summary).trim()) {
+    return res.status(400).json({ success: false, message: 'summary is required' });
+  }
+
+  const normalizedStatus = String(finalStatus || 'resolved');
+  const allowedFinalStatuses = ['resolved', 'cancelled'];
+  if (!allowedFinalStatuses.includes(normalizedStatus)) {
+    return res.status(400).json({ success: false, message: `finalStatus must be one of: ${allowedFinalStatuses.join(', ')}` });
+  }
+
+  const conclusion = {
+    id: taskConclusions.length + 1,
+    needId,
+    summary: String(summary).trim(),
+    finalStatus: normalizedStatus,
+    impact: impact || '',
+    nextSteps: nextSteps || '',
+    closedBy: closedBy || 'system',
+    submittedAt: new Date().toISOString()
+  };
+
+  taskConclusions = taskConclusions.filter(item => item.needId !== needId);
+  taskConclusions.push(conclusion);
+
+  need.status = normalizedStatus;
+  need.conclusionSummary = conclusion.summary;
+  need.conclusionId = conclusion.id;
+  need.closedAt = conclusion.submittedAt;
+  need.updatedAt = new Date().toISOString();
+
+  return res.json({
+    success: true,
+    data: { need, conclusion },
+    message: 'Task conclusion submitted successfully'
+  });
+});
+
+app.get('/api/conclusions', (req, res) => {
+  return res.json({
+    success: true,
+    count: taskConclusions.length,
+    data: taskConclusions
+  });
+});
+
 app.patch('/api/needs/:id/status', (req, res) => {
   const needId = Number(req.params.id);
   const { status } = req.body;
@@ -352,7 +411,46 @@ app.patch('/api/needs/:id/status', (req, res) => {
 
   need.status = status;
   need.updatedAt = new Date().toISOString();
+  if (req.query.autoDelete === 'true' && isNeedDone(status)) {
+    needs = needs.filter(item => item.id !== needId);
+    return res.json({
+      success: true,
+      data: { id: needId, status },
+      message: 'Need marked as done and deleted successfully'
+    });
+  }
+
   res.json({ success: true, data: need, message: 'Need status updated successfully' });
+});
+
+app.delete('/api/needs/:id', (req, res) => {
+  const id = Number(req.params.id);
+  const index = needs.findIndex(n => n.id === id);
+  if (index === -1) {
+    return res.status(404).json({ success: false, message: 'Need not found' });
+  }
+
+  needs.splice(index, 1);
+  res.json({ success: true, message: 'Need deleted successfully' });
+});
+
+app.delete('/api/needs/completed', (req, res) => {
+  const onlyStatus = req.query.status ? String(req.query.status).toLowerCase() : 'all';
+  const before = needs.length;
+
+  needs = needs.filter((need) => {
+    const status = String(need.status || '').toLowerCase();
+    if (onlyStatus === 'resolved') return status !== 'resolved';
+    if (onlyStatus === 'cancelled') return status !== 'cancelled';
+    return !isNeedDone(status);
+  });
+
+  const deletedCount = before - needs.length;
+  return res.json({
+    success: true,
+    deletedCount,
+    message: deletedCount > 0 ? 'Completed needs deleted successfully' : 'No completed needs found'
+  });
 });
 
 // 3. Become a Volunteer
@@ -658,7 +756,7 @@ app.get('/api/dashboard', (req, res) => {
       })),
       priorityPipeline: filteredNeeds
         .filter(n => n.status === 'open')
-        .sort((a, b) => (b.urgencyScore || 0) - (a.urgencyScore || 0))
+        .sort((a, b) => buildUrgencyScore(b) - buildUrgencyScore(a))
         .slice(0, 5)
         .map(n => ({
           title: n.title,
@@ -821,7 +919,9 @@ app.get('/api/dashboard/:role', (req, res) => {
           totalNeeds: needs.length,
           totalVolunteers: volunteers.length,
           totalNgos: ngos.length,
-          resolutionRate: `${Math.round((needs.filter(n => n.status === 'resolved').length / needs.length) * 100)}%`
+          resolutionRate: needs.length
+            ? `${Math.round((needs.filter(n => n.status === 'resolved').length / needs.length) * 100)}%`
+            : '0%'
         },
         dataQuality: {
           flaggedUploads: uploadJobs.filter(job => job.status === 'failed').length,
@@ -1115,15 +1215,11 @@ app.get('/api/reports/export', (req, res) => {
 
 let userSettings = { theme: 'dark' };
 
-app.get('/api/settings', (req, res) => {
-  res.json({ success: true, data: userSettings });
-});
-
 app.patch('/api/settings/theme', (req, res) => {
   const { theme } = req.body;
   if (theme === 'light' || theme === 'dark') {
-    userSettings.theme = theme;
-    res.json({ success: true, data: userSettings });
+    appSettings.theme = theme === 'light' ? 'Light' : 'Dark';
+    res.json({ success: true, data: appSettings });
   } else {
     res.status(400).json({ success: false, message: 'Invalid theme provided.' });
   }
