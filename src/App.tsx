@@ -193,7 +193,7 @@ const Sidebar = ({ activeTab, setActiveTab, userRole, onLogout }: { activeTab: s
   );
 };
 
-const Header = ({ userRole, setActiveTab, theme, toggleTheme }: { userRole: UserRole, setActiveTab: (t: string) => void, theme: string, toggleTheme: () => void }) => (
+const Header = ({ userRole, setActiveTab }: { userRole: UserRole, setActiveTab: (t: string) => void }) => (
   <div className="h-20 border-b border-slate-800 bg-[#020617]/80 backdrop-blur-xl sticky top-0 z-40 px-8 flex items-center justify-between">
     <div className="flex items-center gap-4 flex-1">
       <div className="relative w-full max-w-lg">
@@ -1479,20 +1479,37 @@ const SettingsPage = () => {
               </select>
             </div>
             <div className="rounded-2xl border border-slate-800 bg-black/30 p-5">
-              <h4 className="text-white font-semibold mb-2">Interface Theme</h4>
-              <div className="flex gap-2">
-                {['Dark', 'Light', 'Cyber'].map(t => (
-                  <button
-                    key={t}
-                    onClick={() => updateSetting('theme', t)}
-                    className={`flex-1 py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${
-                      settings.theme === t ? 'bg-white text-black border-white' : 'border-slate-800 text-slate-500 hover:border-slate-600'
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
+              <h4 className="text-white font-semibold mb-2">Language</h4>
+              <select
+                value={settings.language || 'English'}
+                onChange={(e) => updateSetting('language', e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:border-green-500 outline-none"
+              >
+                <option>English</option>
+                <option>Hindi</option>
+                <option>Marathi</option>
+                <option>Gujarati</option>
+              </select>
+            </div>
+            <div className="rounded-2xl border border-slate-800 bg-black/30 p-5">
+              <h4 className="text-white font-semibold mb-2">Data Export</h4>
+              <button
+                onClick={() => alert('Data export initiated...')}
+                className="w-full py-3 rounded-xl bg-slate-800 text-sm font-bold text-white hover:bg-slate-700 transition-colors"
+              >
+                Export All Data (CSV)
+              </button>
+            </div>
+            <div className="rounded-2xl border border-slate-800 bg-black/30 p-5">
+              <h4 className="text-white font-semibold mb-2">Two-Factor Authentication</h4>
+              <button
+                onClick={() => updateSetting('twoFactor', !settings.twoFactor)}
+                className={`w-full py-3 rounded-xl text-sm font-bold transition-colors ${
+                  settings.twoFactor ? 'bg-green-500/20 text-green-500 border border-green-500/30' : 'bg-slate-800 text-white hover:bg-slate-700'
+                }`}
+              >
+                {settings.twoFactor ? 'Enabled' : 'Enable 2FA'}
+              </button>
             </div>
           </div>
         </div>
@@ -2372,7 +2389,7 @@ export default function App() {
           >
             <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userRole={userRole} onLogout={handleLogout} />
             <div className="flex-1 flex flex-col h-screen overflow-hidden">
-              <Header userRole={userRole} setActiveTab={setActiveTab} theme={theme} toggleTheme={toggleTheme} />
+              <Header userRole={userRole} setActiveTab={setActiveTab} />
               <main className="flex-1 overflow-y-auto no-scrollbar scroll-smooth">
                 {activeTab === 'dashboard' && <DashboardPage />}
                 {activeTab === 'notifications' && <NotificationsPage />}
@@ -2555,7 +2572,18 @@ export default function App() {
                         </div>
                       ) : (
                         <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-black">
-                          <video ref={volunteerCameraRef} className="w-full max-h-72 object-cover" autoPlay muted playsInline />
+                          <video 
+                            ref={(el) => {
+                              volunteerCameraRef.current = el;
+                              if (el && el.srcObject !== volunteerVerificationStream) {
+                                el.srcObject = volunteerVerificationStream;
+                              }
+                            }} 
+                            className="w-full max-h-72 object-cover" 
+                            autoPlay 
+                            muted 
+                            playsInline 
+                          />
                         </div>
                       )}
                     </div>
